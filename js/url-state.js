@@ -120,7 +120,12 @@
       }).join('|');
     }
 
-    const payload = [eventName, activeRoomId, focusPinId, packedPins, packedRooms].join(';');
+    const sessionId = sanitizeField(stateObj.sessionId || '');
+    const parts = [eventName, activeRoomId, focusPinId, packedPins, packedRooms];
+    if (sessionId) {
+      parts.push(sessionId);
+    }
+    const payload = parts.join(';');
     return `#cf1=${encodeURIComponent(payload)}`;
   }
 
@@ -149,6 +154,7 @@
       const focusPinId = desanitizeField(parts[2]) || '';
       const pinsRaw = parts[3] || '';
       const roomsRaw = parts.length >= 5 ? parts[4] : '';
+      const sessionId = parts.length >= 6 ? (desanitizeField(parts[5]) || '') : '';
 
       const pins = [];
       if (pinsRaw.length > 0) {
@@ -248,7 +254,8 @@
         activeRoomId,
         focusPinId,
         pins,
-        rooms
+        rooms,
+        sessionId
       };
     } catch (err) {
       console.warn('[ChromaUrlState] Failed to decode hash:', err);

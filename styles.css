@@ -2118,52 +2118,76 @@ body {
 }
 
 /* ==========================================================================
-   18. DEDICATED SHARING UI STYLES (.share-shell)
-   Compact, ultra-simple, 1-screen mobile & desktop crowd locator (max-width: 480px)
+   18. DEDICATED SHARING UI STYLES (.themed-share-body & .share-shell)
+   Dynamic Whole-App Colour Theming: Tints the entire UI with the selected spot colour!
    ========================================================================== */
-.share-shell {
+html:has(body.themed-share-body),
+body.themed-share-body {
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 50% 38%, var(--spot-hex, #F8FAFC) 0%, var(--spot-hex, #F8FAFC) 48%, var(--spot-bg-edge, #B3B9C1) 100%);
+  background-attachment: fixed;
+  color: var(--theme-fg, #0B0E14);
+  overflow-x: hidden;
+}
+
+.themed-share-body .share-shell {
   max-width: 480px;
   margin: 0 auto;
   padding: 12px 16px 28px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 100vh;
+  min-height: 100dvh;
   justify-content: flex-start;
 }
 
 @media (min-height: 700px) and (min-width: 420px) {
-  .share-shell {
+  .themed-share-body .share-shell {
     padding-top: 18px;
     gap: 14px;
   }
 }
 
-/* Minimal Share Header */
-.share-header {
+/* Dynamic Frosted Header */
+.themed-share-body .share-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-hairline);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
 }
 
-.share-header-left {
+.themed-share-body .share-header-left {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.share-event-pill {
+.themed-share-body .brand-link {
+  color: var(--theme-fg, #0B0E14);
+  text-decoration: none;
+}
+
+.themed-share-body .brand-title {
+  color: var(--theme-fg, #0B0E14);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.themed-share-body .share-event-pill {
   font-family: var(--font-body);
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-subtle);
-  padding: 2px 8px;
+  font-weight: 700;
+  color: var(--theme-fg, #0B0E14);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 3px 10px;
   border-radius: var(--radius-full);
   max-width: 140px;
   overflow: hidden;
@@ -2171,86 +2195,135 @@ body {
   white-space: nowrap;
 }
 
-.share-header-right {
+.themed-share-body .share-header-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.btn-setup-link {
+.themed-share-body .btn-setup-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
   border-radius: var(--radius-full);
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   font-family: var(--font-body);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   white-space: nowrap;
 }
 
-.btn-setup-link:hover {
-  background: var(--bg-surface);
-  border-color: var(--accent-amber);
-  color: var(--text-primary);
+.themed-share-body .btn-setup-link:hover {
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+  border-color: var(--theme-fg, #0B0E14);
+  color: var(--theme-fg, #0B0E14);
 }
 
 /* Room tabs for sharing */
-.share-room-tabs {
+.themed-share-body .share-room-tabs {
   width: 100%;
 }
 
-/* Incoming friend spot banner */
-.shared-friend-banner {
+.themed-share-body .room-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.themed-share-body .room-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.themed-share-body .room-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
+  border-radius: var(--radius-full);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-family: var(--font-body);
+  font-size: 0.78125rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.themed-share-body .room-tab:hover {
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+  color: var(--theme-fg, #0B0E14);
+}
+
+.themed-share-body .room-tab.active {
+  background: var(--theme-solid-bg, #0B0E14) !important;
+  color: var(--theme-solid-fg, #FFFFFF) !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+
+/* Incoming friend spot banner in themed UI */
+.themed-share-body .shared-friend-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--accent-amber);
-  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1.5px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--theme-fg, #0B0E14);
   font-family: var(--font-body);
-  font-size: 0.75rem;
-  box-shadow: 0 4px 12px var(--accent-amber-subtle);
+  font-size: 0.8125rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
   animation: slide-down 0.2s ease;
 }
 
-.friend-banner-content {
+.themed-share-body .friend-banner-content {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.friend-dot {
-  width: 8px;
-  height: 8px;
+.themed-share-body .friend-dot {
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--accent-amber);
-  box-shadow: 0 0 8px var(--accent-amber);
+  background: var(--theme-fg, #0B0E14);
+  box-shadow: 0 0 8px var(--theme-fg, #0B0E14);
   flex-shrink: 0;
 }
 
-.friend-banner-close {
+.themed-share-body .friend-banner-close {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--theme-fg-muted, rgba(11, 14, 20, 0.72));
   cursor: pointer;
   font-size: 0.875rem;
-  padding: 2px 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
 }
 
-.friend-banner-close:hover {
-  color: var(--text-primary);
+.themed-share-body .friend-banner-close:hover {
+  color: var(--theme-fg, #0B0E14);
 }
 
 /* Friend pin pulsing on map overlay */
@@ -2270,7 +2343,7 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid var(--accent-amber);
+  border: 2px solid var(--theme-solid-bg, #0B0E14);
   animation: pulse-halo 1.6s infinite;
   pointer-events: none;
 }
@@ -2279,17 +2352,17 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--accent-amber);
-  border: 2px solid #FFFFFF;
+  background: var(--theme-solid-bg, #0B0E14);
+  border: 2px solid var(--theme-solid-fg, #FFFFFF);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
 }
 
 .friend-pin-label {
   margin-top: 3px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: var(--radius-xs);
-  background: rgba(9, 11, 14, 0.9);
-  color: #FFFFFF;
+  background: var(--theme-solid-bg, #0B0E14);
+  color: var(--theme-solid-fg, #FFFFFF);
   font-family: var(--font-mono);
   font-size: 0.625rem;
   font-weight: 700;
@@ -2297,55 +2370,256 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 
-/* 2D Colour Wheel Map Card in Sharing UI */
-.wheel-stage-card {
+/* ==========================================================================
+   LIVE FINDER BAR & PEERS STRIP (Frosted Whole-App Theme Integration)
+   ========================================================================== */
+.themed-share-body .live-bar {
   display: flex;
-  flex-direction: column;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
-.wheel-top-strip {
+.themed-share-body .live-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.themed-share-body .live-status-pill:hover {
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+  border-color: var(--theme-fg, #0B0E14);
+}
+
+.themed-share-body .live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--theme-fg-muted, rgba(11, 14, 20, 0.4));
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.themed-share-body .live-dot.connecting {
+  background: var(--accent-amber, #F59E0B);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  animation: pulse-halo 1.5s infinite;
+}
+
+.themed-share-body .live-dot.live {
+  background: #10B981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.85);
+  animation: pulse-live-dot 1.4s infinite;
+}
+
+@keyframes pulse-live-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.themed-share-body .live-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.themed-share-body .live-name-input::placeholder {
+  color: var(--theme-fg-muted, rgba(11, 14, 20, 0.72));
+  font-weight: 500;
+}
+
+.themed-share-body .live-name-input:focus {
+  border-color: var(--theme-fg, #0B0E14);
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+}
+
+/* Horizontal Scrollable Live Peers Strip */
+.themed-share-body .live-peers-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  width: 100%;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.themed-share-body .live-peers-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.themed-share-body .live-peer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.themed-share-body .live-peer-chip:hover {
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+  border-color: var(--theme-fg, #0B0E14);
+}
+
+.themed-share-body .live-peer-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.themed-share-body .live-peer-chip-dist {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--theme-fg-muted, rgba(11, 14, 20, 0.72));
+}
+
+/* Live Peer Pin on Radar Overlay */
+.live-peer-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 28;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.live-peer-halo {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  animation: pulse-halo 1.5s infinite;
+  pointer-events: none;
+}
+
+.live-peer-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.85);
+  position: relative;
+  z-index: 2;
+}
+
+.live-peer-tag {
+  margin-top: 3px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  background: var(--theme-solid-bg, #0B0E14);
+  color: var(--theme-solid-fg, #FFFFFF);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  z-index: 2;
+}
+
+/* 2D Colour Wheel Map Card in Themed Sharing UI */
+.themed-share-body .wheel-stage-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1.5px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.themed-share-body .wheel-top-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-surface-elevated);
-  border-bottom: 1px solid var(--border-hairline);
+  padding: 9px 14px;
+  background: var(--theme-wheel-bar, rgba(11, 14, 20, 0.09));
+  border-bottom: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
 }
 
-.orientation-hint {
+.themed-share-body .stage-dir-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--theme-fg, #0B0E14);
+  box-shadow: 0 0 8px var(--theme-fg, #0B0E14);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.themed-share-body .orientation-hint {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--theme-fg, #0B0E14);
+}
+
+.themed-share-body .btn-flip-wheel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--text-primary);
-}
-
-.btn-flip-wheel {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
-.btn-flip-wheel:hover {
-  background: var(--bg-surface-sunken);
-  color: var(--text-primary);
-  border-color: var(--border-strong);
+.themed-share-body .btn-flip-wheel:hover {
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+  color: var(--theme-fg, #0B0E14);
+  border-color: var(--theme-fg, #0B0E14);
 }
 
 .share-wheel-viewport {
@@ -2360,22 +2634,24 @@ body {
   user-select: none;
 }
 
-/* Swatch Card in Sharing UI */
-.share-swatch-card {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  text-align: left !important;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+/* Reticle Center Dot in Themed Viewport */
+.themed-share-body .reticle-dot {
+  background: var(--spot-hex, #FFFFFF);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
 }
 
-.share-swatch-info {
+/* ==========================================================================
+   UNBOXED SPOT READOUT ROW (Sits directly on tinted app canvas)
+   ========================================================================== */
+.spot-readout-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 4px 4px 4px;
+}
+
+.spot-readout-info {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2385,33 +2661,40 @@ body {
   flex: 1 1 auto;
 }
 
-.share-swatch-card .swatch-color-name {
-  font-size: 1.35rem;
+.spot-color-title {
+  font-size: 1.65rem;
   font-weight: 800;
   line-height: 1.15;
-  letter-spacing: -0.02em;
-  text-align: left;
+  letter-spacing: -0.025em;
+  color: var(--theme-fg, #0B0E14);
+  margin: 0;
+  padding: 0;
 }
 
-.swatch-meta {
+.spot-color-meta {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  opacity: 0.88;
+  font-size: 0.71875rem;
   font-weight: 600;
-  max-width: 100%;
+  color: var(--theme-fg-muted, rgba(11, 14, 20, 0.72));
+  letter-spacing: 0.01em;
   line-height: 1.35;
-  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.btn-fullscreen-beacon {
+.btn-themed-glass {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 8px 14px;
   border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: inherit;
+  background: var(--theme-glass, rgba(11, 14, 20, 0.09));
+  border: 1px solid var(--theme-glass-border, rgba(11, 14, 20, 0.18));
+  color: var(--theme-fg, #0B0E14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
@@ -2421,32 +2704,51 @@ body {
   flex-shrink: 0;
 }
 
-.btn-fullscreen-beacon:hover {
-  background: rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.45);
+.btn-themed-glass:hover {
+  background: var(--theme-glass-hover, rgba(11, 14, 20, 0.16));
+  border-color: var(--theme-fg, #0B0E14);
 }
 
-/* Single Share Button in Sharing UI */
-.btn-single-share {
-  width: 100%;
-  padding: 14px 20px;
-  font-size: 0.9375rem;
-  letter-spacing: 0.01em;
-  font-weight: 800;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 6px 18px var(--accent-amber-glow);
-}
-
-.btn-single-share:active {
+.btn-themed-glass:active {
   transform: translateY(1px);
 }
 
-.share-footer {
+/* Primary Share Button in Themed Sharing UI */
+.themed-share-body #btn-share-spot,
+.themed-share-body .btn-single-share {
+  width: 100%;
+  padding: 15px 22px;
+  font-size: 0.96875rem;
+  letter-spacing: 0.01em;
+  font-weight: 800;
+  border-radius: var(--radius-lg);
+  background: var(--theme-solid-bg, #0B0E14);
+  color: var(--theme-solid-fg, #FFFFFF);
+  border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.themed-share-body #btn-share-spot:hover,
+.themed-share-body .btn-single-share:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.themed-share-body #btn-share-spot:active,
+.themed-share-body .btn-single-share:active {
+  transform: translateY(1px);
+}
+
+/* Minimal Footer in Themed Sharing UI */
+.themed-share-body .share-footer {
   margin-top: auto;
   padding-top: 10px;
   font-family: var(--font-mono);
   font-size: 0.6875rem;
-  color: var(--text-dim);
+  font-weight: 600;
+  color: var(--theme-fg-muted, rgba(11, 14, 20, 0.72));
   text-align: center;
   display: flex;
   align-items: center;

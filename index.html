@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body>
+<body class="themed-share-body">
 
   <!-- Radically Simple, Single-Column Sharing Shell (max-width: 480px) -->
   <div class="share-shell">
@@ -53,12 +53,21 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Setup</span>
         </a>
-        <button id="btn-theme-toggle" type="button" class="btn-theme-toggle" aria-label="Toggle theme">☀️</button>
       </div>
     </header>
 
     <!-- 1. Room Selector -->
     <nav id="room-tabs" class="room-tabs share-room-tabs" role="tablist" aria-label="Select Room"></nav>
+
+    <!-- Sleek single-line frosted Live Bar -->
+    <div id="live-bar" class="live-bar">
+      <button id="btn-live-toggle" type="button" class="live-status-pill" title="Start or copy Live Finder session">
+        <span id="live-dot" class="live-dot"></span>
+        <span id="live-status-text">Go Live</span>
+      </button>
+      <input id="live-name-input" type="text" class="live-name-input" maxlength="20" placeholder="Your name (optional)" aria-label="Your name for Live Finder" />
+    </div>
+    <div id="live-peers-strip" class="live-peers-strip hidden"></div>
 
     <!-- Optional incoming friend banner (hidden unless a shared link was opened) -->
     <div id="shared-friend-banner" class="shared-friend-banner hidden"></div>
@@ -81,12 +90,12 @@
     </section>
 
     <!-- 3. Your Chosen Colour Readout -->
-    <div id="swatch-card" class="swatch-card share-swatch-card">
-      <div class="share-swatch-info">
-        <div id="swatch-color-name" class="swatch-color-name">Pearl White</div>
-        <div id="swatch-meta" class="swatch-meta">#F8FAFC · Zone D4 · Center</div>
+    <div id="spot-readout" class="spot-readout-row">
+      <div class="spot-readout-info">
+        <h1 id="swatch-color-name" class="spot-color-title">Bright Mint</h1>
+        <div id="swatch-meta" class="spot-color-meta">Zone G3 · #49FB82 · Toward Speaker</div>
       </div>
-      <button id="btn-fullscreen-beacon" type="button" class="btn-fullscreen-beacon" title="Fill screen with your colour">
+      <button id="btn-fullscreen-beacon" type="button" class="btn-themed-glass" title="Fill screen with pure colour">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         <span>Fullscreen</span>
       </button>
@@ -137,6 +146,7 @@
   <!-- Application Logic (Strict relative paths) -->
   <script src="./js/color-engine.js"></script>
   <script src="./js/url-state.js"></script>
+  <script src="./js/live-sync.js"></script>
   <script src="./js/share-app.js"></script>
 
   <!-- PWA Service Worker Registration -->

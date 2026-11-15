@@ -8,6 +8,7 @@
 
   const ColorEngine = window.ChromaColorEngine;
   const UrlState = window.ChromaUrlState;
+  const LiveSync = window.ChromaLiveSync;
 
   if (!ColorEngine || !UrlState) {
     console.error('[ChromaFloor] ChromaColorEngine and ChromaUrlState must be loaded before share-app.js');
@@ -19,6 +20,8 @@
   const STORAGE_KEY_ROOMS = 'chromafloor_rooms_v3';
   const STORAGE_KEY_THEME = 'chromafloor_theme_v2';
   const STORAGE_KEY_SPOT = 'chromafloor_saved_spot_v3';
+  const STORAGE_KEY_USERNAME = 'chromafloor_username_v3';
+  const STORAGE_KEY_SESSION = 'chromafloor_session_v3';
 
   // Application State
   const state = {
@@ -29,8 +32,14 @@
     friendPin: null, // Friend pin decoded from URL if present
     flipped: false,
     beaconOpen: false,
-    beaconPulsing: false
+    beaconPulsing: false,
+    userName: '',
+    sessionId: '',
+    livePeers: [],
+    liveStatus: { connectedCount: 0, state: 'offline' }
   };
+
+  let liveClient = null;
 
   // Helper: Element getter by primary ID or fallback ID
   function getEl(primaryId, fallbackId) {
@@ -41,7 +50,6 @@
   const els = {
     shareEventName: getEl('share-event-name', 'event-name-label'),
     linkToSetup: getEl('link-to-setup', 'btn-edit-layout'),
-    btnThemeToggle: getEl('btn-theme-toggle'),
     roomTabs: getEl('room-tabs'),
     orientationHint: getEl('orientation-hint', 'orientation-label'),
     btnFlipWheel: getEl('btn-flip-wheel', 'btn-flip-view'),
@@ -49,7 +57,8 @@
     mapViewport: getEl('map-viewport'),
     floorCanvas: getEl('floor-canvas'),
     mapOverlay: getEl('map-overlay'),
-    swatchCard: getEl('swatch-card'),
+    spotReadout: getEl('spot-readout'),
+    swatchCard: getEl('swatch-card'), // legacy fallback if present
     swatchColorName: getEl('swatch-color-name'),
     swatchMeta: getEl('swatch-meta', 'swatch-position-meta'),
     btnFullscreenBeacon: getEl('btn-fullscreen-beacon', 'btn-flash-beacon'),
@@ -62,7 +71,14 @@
     beaconZoneCode: getEl('beacon-zone-code'),
     beaconRoomLabel: getEl('beacon-room-label'),
     beaconHexCode: getEl('beacon-hex-code'),
-    toastContainer: getEl('toast-container')
+    toastContainer: getEl('toast-container'),
+    metaThemeColor: document.querySelector('meta[name="theme-color"]'),
+    liveBar: getEl('live-bar'),
+    btnLiveToggle: getEl('btn-live-toggle'),
+    liveDot: getEl('live-dot'),
+    liveStatusText: getEl('live-status-text'),
+    liveNameInput: getEl('live-name-input'),
+    livePeersStrip: getEl('live-peers-strip')
   };
 
   /**
@@ -124,6 +140,12 @@
       if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
       }
+
+      const savedUserName = localStorage.getItem(STORAGE_KEY_USERNAME);
+      if (savedUserName) state.userName = savedUserName;
+
+      const savedSession = sessionStorage.getItem(STORAGE_KEY_SESSION);
+      if (savedSession) state.sessionId = savedSession;
     } catch (e) {
       console.warn('[share-app] LocalStorage read error:', e);
     }
@@ -139,6 +161,12 @@
         }
         if (decoded.activeRoomId) {
           state.activeRoomId = decoded.activeRoomId;
+        }
+        if (decoded.sessionId) {
+          state.sessionId = decoded.sessionId;
+          try {
+            sessionStorage.setItem(STORAGE_KEY_SESSION, decoded.sessionId);
+          } catch (_) {}
         }
 
         // Check for friend pins or shared spot in hash
@@ -159,6 +187,159 @@
   }
 
   /**
+   * Returns clean user display name
+   */
+  function getUserDisplayName() {
+    return (state.userName && state.userName.trim()) || 'Friend';
+  }
+
+  /**
+   * Renders the Live Status Pill (#btn-live-toggle)
+   */
+  function renderLiveStatus() {
+    if (!els.liveDot || !els.liveStatusText) return;
+
+    if (!state.sessionId) {
+      els.liveDot.className = 'live-dot';
+      els.liveStatusText.textContent = 'Go Live';
+      if (els.livePeersStrip) els.livePeersStrip.classList.add('hidden');
+      return;
+    }
+
+    const { connectedCount, state: connState } = state.liveStatus;
+    const peerCount = state.livePeers.length;
+
+    if (connState === 'live') {
+      els.liveDot.className = 'live-dot live';
+      if (peerCount === 0) {
+        els.liveStatusText.textContent = 'Live · Waiting for friend';
+      } else {
+        els.liveStatusText.textContent = `Live · ${peerCount + 1} on radar`;
+      }
+    } else if (connState === 'connecting') {
+      els.liveDot.className = 'live-dot connecting';
+      els.liveStatusText.textContent = 'Connecting…';
+    } else {
+      els.liveDot.className = 'live-dot';
+      els.liveStatusText.textContent = 'Offline';
+    }
+  }
+
+  /**
+   * Renders horizontal live peers strip (#live-peers-strip)
+   */
+  function renderLivePeersStrip() {
+    if (!els.livePeersStrip) return;
+
+    if (!state.sessionId || state.livePeers.length === 0) {
+      els.livePeersStrip.classList.add('hidden');
+      els.livePeersStrip.innerHTML = '';
+      return;
+    }
+
+    els.livePeersStrip.classList.remove('hidden');
+    els.livePeersStrip.innerHTML = '';
+
+    const activeRoom = getActiveRoom();
+
+    state.livePeers.forEach(peer => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'live-peer-chip';
+      chip.title = `Switch to ${peer.name}`;
+
+      const peerRoom = state.rooms.find(r => r.id === peer.roomId) || { name: peer.roomId || 'Room', widthMeters: 40, depthMeters: 50 };
+      const isDiffRoom = peer.roomId !== state.activeRoomId;
+      const roomHint = isDiffRoom ? ` ↗ ${peerRoom.name}` : '';
+
+      // Distance calculation in meters
+      let distText = '';
+      try {
+        const directions = ColorEngine.getWalkingDirections(state.spot, peer, peerRoom);
+        if (directions && typeof directions.meters === 'number') {
+          distText = ` · ${directions.meters}m`;
+        }
+      } catch (_) {}
+
+      chip.innerHTML = `
+        <span class="live-peer-chip-dot" style="background-color: ${peer.hex || '#FFFFFF'}"></span>
+        <span>${peer.name || 'Friend'}${roomHint}</span>
+        <span class="live-peer-chip-dist">${distText}</span>
+      `;
+
+      chip.addEventListener('click', () => {
+        if (peer.roomId && peer.roomId !== state.activeRoomId) {
+          state.activeRoomId = peer.roomId;
+          renderRoomTabs();
+          renderFloorCanvas();
+          renderOverlay();
+          updateSwatch();
+          updateHeader();
+          publishCurrentSpot();
+        } else {
+          // Snap spot to peer if in same room
+          state.spot = { x: peer.x, y: peer.y };
+          renderOverlay();
+          updateSwatch();
+          publishCurrentSpot();
+          showToast(`📍 Snapped to ${peer.name}'s spot!`);
+        }
+      });
+
+      els.livePeersStrip.appendChild(chip);
+    });
+  }
+
+  /**
+   * Publishes user's current live spot
+   */
+  function publishCurrentSpot() {
+    if (!liveClient || !state.sessionId) return;
+    const room = getActiveRoom();
+    const palette = room.palette || 'wheel';
+    const spotColor = ColorEngine.getSpotColor(state.spot.x, state.spot.y, palette);
+
+    liveClient.publishSpot({
+      name: getUserDisplayName(),
+      roomId: state.activeRoomId,
+      x: state.spot.x,
+      y: state.spot.y,
+      hex: spotColor.hex,
+      colorName: spotColor.colorName,
+      zoneCode: spotColor.zoneCode
+    });
+  }
+
+  /**
+   * Starts or updates Live Finder client
+   */
+  function ensureLiveClient() {
+    if (!LiveSync || !state.sessionId) return;
+
+    if (!liveClient) {
+      liveClient = LiveSync.createClient({
+        sessionId: state.sessionId,
+        onPeersChange: (peers) => {
+          state.livePeers = peers || [];
+          renderLiveStatus();
+          renderLivePeersStrip();
+          renderOverlay();
+        },
+        onStatusChange: (status) => {
+          state.liveStatus = status || { connectedCount: 0, state: 'offline' };
+          renderLiveStatus();
+        }
+      });
+      liveClient.start();
+    } else {
+      liveClient.setSession(state.sessionId);
+    }
+
+    renderLiveStatus();
+    publishCurrentSpot();
+  }
+
+  /**
    * Synchronize UI header & link to setup
    */
   function updateHeader() {
@@ -172,7 +353,8 @@
         eventName: state.eventName,
         activeRoomId: state.activeRoomId,
         rooms: state.rooms,
-        pins: state.friendPin ? [state.friendPin] : []
+        pins: state.friendPin ? [state.friendPin] : [],
+        sessionId: state.sessionId
       });
       if (els.linkToSetup.tagName.toLowerCase() === 'a') {
         els.linkToSetup.href = setupUrl;
@@ -203,6 +385,7 @@
         renderOverlay();
         updateSwatch();
         updateHeader();
+        publishCurrentSpot();
       });
       els.roomTabs.appendChild(tab);
     });
@@ -256,7 +439,57 @@
   }
 
   /**
-   * Updates spot swatch card and full-screen beacon info
+   * Applies Dynamic Whole-App Colour Theming onto document.body (.themed-share-body)
+   */
+  function applyWholeAppTheme(spotColor) {
+    if (!document.body || !document.body.classList.contains('themed-share-body')) return;
+
+    const { h, s, l, rgb, hex, textColor } = spotColor;
+    const [r, g, b] = rgb;
+    const isLight = textColor === '#0E1012';
+
+    // Compute dimensional atmospheric edge stop from (h, s, l)
+    const edgeSat = Math.min(100, s + 4);
+    const edgeLum = Math.max(10, Math.round(l * 0.72));
+    const edgeRgb = ColorEngine.hslToRgb(h, edgeSat, edgeLum);
+    const edgeColor = `rgb(${edgeRgb[0]}, ${edgeRgb[1]}, ${edgeRgb[2]})`;
+
+    const bodyStyle = document.body.style;
+    bodyStyle.setProperty('--spot-hex', hex);
+    bodyStyle.setProperty('--spot-rgb', `${r}, ${g}, ${b}`);
+    bodyStyle.setProperty('--spot-bg-edge', edgeColor);
+
+    if (isLight) {
+      bodyStyle.setProperty('--theme-fg', '#0B0E14');
+      bodyStyle.setProperty('--theme-fg-muted', 'rgba(11, 14, 20, 0.72)');
+      bodyStyle.setProperty('--theme-glass', 'rgba(11, 14, 20, 0.09)');
+      bodyStyle.setProperty('--theme-glass-hover', 'rgba(11, 14, 20, 0.16)');
+      bodyStyle.setProperty('--theme-glass-border', 'rgba(11, 14, 20, 0.18)');
+      bodyStyle.setProperty('--theme-wheel-bar', 'rgba(11, 14, 20, 0.09)');
+      bodyStyle.setProperty('--theme-solid-bg', '#0B0E14');
+      bodyStyle.setProperty('--theme-solid-fg', '#FFFFFF');
+    } else {
+      bodyStyle.setProperty('--theme-fg', '#FFFFFF');
+      bodyStyle.setProperty('--theme-fg-muted', 'rgba(255, 255, 255, 0.78)');
+      bodyStyle.setProperty('--theme-glass', 'rgba(255, 255, 255, 0.14)');
+      bodyStyle.setProperty('--theme-glass-hover', 'rgba(255, 255, 255, 0.22)');
+      bodyStyle.setProperty('--theme-glass-border', 'rgba(255, 255, 255, 0.26)');
+      bodyStyle.setProperty('--theme-wheel-bar', 'rgba(255, 255, 255, 0.14)');
+      bodyStyle.setProperty('--theme-solid-bg', '#FFFFFF');
+      bodyStyle.setProperty('--theme-solid-fg', '#0B0E14');
+    }
+
+    // Sync mobile browser status bar tint in real time
+    if (!els.metaThemeColor) {
+      els.metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    }
+    if (els.metaThemeColor) {
+      els.metaThemeColor.setAttribute('content', hex);
+    }
+  }
+
+  /**
+   * Updates spot readout, dynamic app theme, and full-screen beacon info
    */
   function updateSwatch() {
     const room = getActiveRoom();
@@ -264,7 +497,10 @@
     const spotColor = ColorEngine.getSpotColor(state.spot.x, state.spot.y, palette);
     const nearest = ColorEngine.getNearestLandmark(state.spot.x, state.spot.y, room);
 
-    // Update Swatch Card
+    // Dynamic whole-app theme sync
+    applyWholeAppTheme(spotColor);
+
+    // Update Swatch / Spot Readout Text
     if (els.swatchColorName) {
       els.swatchColorName.textContent = spotColor.colorName;
     }
@@ -279,7 +515,6 @@
     if (els.swatchCard) {
       els.swatchCard.style.backgroundColor = spotColor.hex;
       els.swatchCard.style.color = spotColor.textColor;
-      // Border or glowing accent
       els.swatchCard.style.borderColor = spotColor.textColor === '#FFFFFF' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
     }
 
@@ -315,8 +550,9 @@
     const palette = room.palette || 'wheel';
     const spotColor = ColorEngine.getSpotColor(state.spot.x, state.spot.y, palette);
 
-    // 1. Friend Shared Spot Banner
-    if (state.friendPin && state.friendPin.roomId === state.activeRoomId) {
+    // 1. Friend Shared Spot Banner & Static Friend Pin (only if 0 live peers)
+    const hasLivePeers = state.livePeers.length > 0;
+    if (!hasLivePeers && state.friendPin && state.friendPin.roomId === state.activeRoomId) {
       if (els.sharedFriendBanner) {
         els.sharedFriendBanner.classList.remove('hidden');
         const friendColorName = state.friendPin.colorName || 'Shared Spot';
@@ -355,12 +591,55 @@
         state.spot = { x: state.friendPin.x, y: state.friendPin.y };
         renderOverlay();
         updateSwatch();
+        publishCurrentSpot();
         showToast(`📍 Snapped to friend's spot!`);
       });
       els.mapOverlay.appendChild(friendPinEl);
     } else if (els.sharedFriendBanner) {
       els.sharedFriendBanner.classList.add('hidden');
     }
+
+    // 1b. Live Peer Pins in Active Room
+    state.livePeers.forEach(peer => {
+      if (peer.roomId !== state.activeRoomId) return;
+
+      const px = state.flipped ? (1 - peer.x) : peer.x;
+      const py = state.flipped ? (1 - peer.y) : peer.y;
+
+      const peerPinEl = document.createElement('div');
+      peerPinEl.className = 'live-peer-pin';
+      peerPinEl.style.left = `${px * 100}%`;
+      peerPinEl.style.top = `${py * 100}%`;
+
+      // Walking distance calculation
+      let distTag = '';
+      try {
+        const directions = ColorEngine.getWalkingDirections(state.spot, peer, room);
+        if (directions && typeof directions.meters === 'number') {
+          distTag = `${directions.meters}m`;
+        }
+      } catch (_) {}
+
+      const timeAgo = peer.isLive ? distTag : (Math.round((Date.now() - peer.ts) / 60000) + 'm ago');
+      const tagText = timeAgo ? `${peer.name || 'Friend'} · ${timeAgo}` : (peer.name || 'Friend');
+
+      peerPinEl.innerHTML = `
+        ${peer.isLive ? `<div class="live-peer-halo" style="border: 2px solid ${peer.hex || '#FFFFFF'};"></div>` : ''}
+        <div class="live-peer-circle" style="background-color: ${peer.hex || '#FFFFFF'};"></div>
+        <div class="live-peer-tag">${tagText}</div>
+      `;
+
+      peerPinEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.spot = { x: peer.x, y: peer.y };
+        renderOverlay();
+        updateSwatch();
+        publishCurrentSpot();
+        showToast(`📍 Snapped to ${peer.name}'s spot!`);
+      });
+
+      els.mapOverlay.appendChild(peerPinEl);
+    });
 
     // 2. Render Placed Landmarks
     const landmarks = Array.isArray(room.landmarks) ? room.landmarks : [];
@@ -456,6 +735,7 @@
       }
 
       updateSwatch();
+      publishCurrentSpot();
     }
 
     els.mapViewport.addEventListener('pointerdown', (e) => {
@@ -481,6 +761,7 @@
       } catch (_) {}
       renderOverlay();
       updateSwatch();
+      publishCurrentSpot();
     }
 
     els.mapViewport.addEventListener('pointerup', endDrag);
@@ -502,6 +783,7 @@
       state.spot.y = Math.max(0, Math.min(1, state.spot.y + dy));
       renderOverlay();
       updateSwatch();
+      publishCurrentSpot();
     });
   }
 
@@ -514,7 +796,18 @@
     const spotColor = ColorEngine.getSpotColor(state.spot.x, state.spot.y, palette);
     const nearest = ColorEngine.getNearestLandmark(state.spot.x, state.spot.y, room);
 
-    // Build URL hash with spot
+    // If sessionId not present, generate one and activate Live Finder
+    if (!state.sessionId && LiveSync) {
+      state.sessionId = LiveSync.generateSessionId();
+      try {
+        sessionStorage.setItem(STORAGE_KEY_SESSION, state.sessionId);
+      } catch (_) {}
+      ensureLiveClient();
+    } else {
+      ensureLiveClient();
+    }
+
+    // Build URL hash with spot & sessionId
     const shareStateObj = {
       eventName: state.eventName,
       activeRoomId: state.activeRoomId,
@@ -522,7 +815,7 @@
       pins: [
         {
           id: 'spot',
-          name: 'Shared Spot',
+          name: getUserDisplayName(),
           roomId: state.activeRoomId,
           x: state.spot.x,
           y: state.spot.y,
@@ -530,7 +823,8 @@
           colorName: spotColor.colorName
         }
       ],
-      rooms: state.rooms
+      rooms: state.rooms,
+      sessionId: state.sessionId
     };
 
     const shareUrl = UrlState.buildShareUrl(shareStateObj);
@@ -671,6 +965,39 @@
   }
 
   /**
+   * Live Finder UI bindings
+   */
+  function setupLiveFinder() {
+    if (els.liveNameInput) {
+      if (state.userName) {
+        els.liveNameInput.value = state.userName;
+      }
+      els.liveNameInput.addEventListener('input', () => {
+        state.userName = els.liveNameInput.value;
+        try {
+          localStorage.setItem(STORAGE_KEY_USERNAME, state.userName);
+        } catch (_) {}
+        publishCurrentSpot();
+      });
+    }
+
+    if (els.btnLiveToggle) {
+      els.btnLiveToggle.addEventListener('click', async () => {
+        if (!state.sessionId && LiveSync) {
+          state.sessionId = LiveSync.generateSessionId();
+          try {
+            sessionStorage.setItem(STORAGE_KEY_SESSION, state.sessionId);
+          } catch (_) {}
+        }
+        ensureLiveClient();
+
+        // Also trigger share & copy with live link
+        await handleOneClickShare();
+      });
+    }
+  }
+
+  /**
    * Initialization
    */
   function init() {
@@ -682,10 +1009,18 @@
     renderOverlay();
     updateSwatch();
 
+    setupLiveFinder();
     setupMapInteractions();
     setupBeacon();
     setupTheme();
     setupFlipWheel();
+
+    // Zero-friction activation: If sessionId exists on load, activate Live Finder immediately!
+    if (state.sessionId) {
+      ensureLiveClient();
+    } else {
+      renderLiveStatus();
+    }
 
     if (els.btnShareSpot) {
       els.btnShareSpot.addEventListener('click', handleOneClickShare);
@@ -703,6 +1038,11 @@
       renderFloorCanvas();
       renderOverlay();
       updateSwatch();
+      if (state.sessionId) {
+        ensureLiveClient();
+      } else {
+        renderLiveStatus();
+      }
     });
   }
 
