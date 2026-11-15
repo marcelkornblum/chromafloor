@@ -1007,21 +1007,50 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.reticle-ring {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.8), 0 0 12px rgba(0, 0, 0, 0.75);
+  animation: reticle-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes reticle-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.reticle-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
 }
 
 .reticle-label {
+  position: absolute;
+  bottom: calc(100% + 8px);
   padding: 4px 10px;
   border-radius: var(--radius-md);
-  background: rgba(9, 11, 14, 0.92);
+  background: rgba(9, 11, 14, 0.94);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.32);
   color: #FFFFFF;
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2333,9 +2362,11 @@ body {
 
 /* Swatch Card in Sharing UI */
 .share-swatch-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  text-align: left !important;
   gap: 12px;
   padding: 12px 16px;
   border-radius: var(--radius-xl);
@@ -2347,8 +2378,11 @@ body {
 .share-swatch-info {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
   gap: 3px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .share-swatch-card .swatch-color-name {
@@ -2356,6 +2390,7 @@ body {
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -0.02em;
+  text-align: left;
 }
 
 .swatch-meta {
@@ -2366,6 +2401,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
 }
 
 .btn-fullscreen-beacon {

@@ -25,7 +25,7 @@
     eventName: 'My Event',
     activeRoomId: 'main',
     rooms: JSON.parse(JSON.stringify(ColorEngine.DEFAULT_ROOMS)),
-    spot: { x: 0.50, y: 0.50 },
+    spot: { x: 0.36, y: 0.34 },
     friendPin: null, // Friend pin decoded from URL if present
     flipped: false,
     beaconOpen: false,
@@ -397,6 +397,14 @@
     reticle.className = 'reticle-marker';
     reticle.style.left = `${renderX * 100}%`;
     reticle.style.top = `${renderY * 100}%`;
+
+    const ring = document.createElement('div');
+    ring.className = 'reticle-ring';
+    reticle.appendChild(ring);
+
+    const dot = document.createElement('div');
+    dot.className = 'reticle-dot';
+    reticle.appendChild(dot);
 
     const label = document.createElement('div');
     label.className = 'reticle-label';
