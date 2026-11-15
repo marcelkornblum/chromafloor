@@ -5,25 +5,28 @@
  */
 (function(root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    const ColorEngine = (typeof window !== 'undefined' && window.ChromaColorEngine) || require('./color-engine');
+    module.exports = factory(ColorEngine);
   } else {
-    root.ChromaUrlState = factory();
+    root.ChromaUrlState = factory(root.ChromaColorEngine);
   }
-})(typeof self !== 'undefined' ? self : this, function() {
+})(typeof self !== 'undefined' ? self : this, function(ColorEngine) {
   'use strict';
 
   // Fixed baseline epoch (2023-11-14) to pack timestamps into small integer minutes
   const TS_EPOCH_MINUTES = 1700000000000;
 
   /**
-   * Field sanitizers to prevent delimiter collision (: ; |) in user strings
+   * Field sanitizers to prevent delimiter collision (: ; | ~ *) in user strings
    */
   function sanitizeField(str) {
     if (str === null || str === undefined) return '';
     return String(str)
       .replace(/\|/g, '/')
       .replace(/;/g, ',')
-      .replace(/:/g, '-');
+      .replace(/:/g, '-')
+      .replace(/~/g, '-')
+      .replace(/\*/g, '');
   }
 
   function desanitizeField(str) {
@@ -31,14 +34,41 @@
   }
 
   /**
+   * Helper to look up landmark icon by fixture type
+   */
+  function getFixtureIcon(type) {
+    const fixtures = (ColorEngine && ColorEngine.FIXTURE_TYPES) || (typeof window !== 'undefined' && window.ChromaColorEngine && window.ChromaColorEngine.FIXTURE_TYPES);
+    if (fixtures && fixtures[type] && fixtures[type].icon) {
+      return fixtures[type].icon;
+    }
+    const fallbackIcons = {
+      stage: '🎸',
+      dj: '🎧',
+      bar: '🍸',
+      booth: '🎛️',
+      speaker: '🔊',
+      entrance: '🚪',
+      wc: '🚻',
+      water: '💧',
+      cloak: '🧥',
+      chill: '🌿',
+      pillar: '🏛️',
+      custom: '🏷️'
+    };
+    return fallbackIcons[type] || '📍';
+  }
+
+  /**
    * Encodes state object into #cf1= hash string
-   * Schema: #cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;pins")
+   * Schema: #cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;packedPins;packedRooms")
    * where pins is: "id:name:roomId:x1000:y1000:tsMin:colorName:note:lat:lng|..."
+   * where packedRooms is: "roomId:roomName:widthMeters:depthMeters:shape:landmarksStr|..."
+   * where landmarksStr is: "lmId*lmName*lmType*x1000*y1000~..."
    */
   function encodeState(stateObj) {
     if (!stateObj || typeof stateObj !== 'object') return '';
 
-    const eventName = sanitizeField(stateObj.eventName || 'Festival');
+    const eventName = sanitizeField(stateObj.eventName || 'My Event');
     const activeRoomId = sanitizeField(stateObj.activeRoomId || 'main');
     const focusPinId = sanitizeField(stateObj.focusPinId || '');
 
@@ -63,7 +93,32 @@
       return [id, name, roomId, x1000, y1000, tsMin, colorName, note, lat, lng].join(':');
     }).join('|');
 
-    const payload = [eventName, activeRoomId, focusPinId, packedPins].join(';');
+    // Encode packed rooms
+    let packedRooms = '';
+    const rawRooms = Array.isArray(stateObj.rooms) ? stateObj.rooms : null;
+    if (rawRooms && rawRooms.length > 0) {
+      packedRooms = rawRooms.slice(0, 10).map(r => {
+        const rId = sanitizeField(r.id || 'room');
+        const rName = sanitizeField(r.name || 'Room');
+        const rWidth = Math.round(Number(r.widthMeters) || 40);
+        const rDepth = Math.round(Number(r.depthMeters) || 50);
+        const rShape = sanitizeField(r.shape || 'stage');
+
+        const lms = Array.isArray(r.landmarks) ? r.landmarks : [];
+        const landmarksStr = lms.slice(0, 25).map(lm => {
+          const lmId = sanitizeField(lm.id || 'lm');
+          const lmName = sanitizeField(lm.name || 'Landmark');
+          const lmType = sanitizeField(lm.type || 'custom');
+          const lmX = Math.round(Math.max(0, Math.min(1, Number(lm.x) || 0)) * 1000);
+          const lmY = Math.round(Math.max(0, Math.min(1, Number(lm.y) || 0)) * 1000);
+          return [lmId, lmName, lmType, lmX, lmY].join('*');
+        }).join('~');
+
+        return [rId, rName, rWidth, rDepth, rShape, landmarksStr].join(':');
+      }).join('|');
+    }
+
+    const payload = [eventName, activeRoomId, focusPinId, packedPins, packedRooms].join(';');
     return `#cf1=${encodeURIComponent(payload)}`;
   }
 
@@ -86,10 +141,11 @@
       const parts = decoded.split(';');
       if (parts.length < 2) return null;
 
-      const eventName = desanitizeField(parts[0]) || 'Festival';
+      const eventName = desanitizeField(parts[0]) || 'My Event';
       const activeRoomId = desanitizeField(parts[1]) || 'main';
       const focusPinId = desanitizeField(parts[2]) || '';
       const pinsRaw = parts[3] || '';
+      const roomsRaw = parts.length >= 5 ? parts[4] : '';
 
       const pins = [];
       if (pinsRaw.length > 0) {
@@ -128,11 +184,65 @@
         }
       }
 
+      let rooms = null;
+      if (roomsRaw && roomsRaw.length > 0) {
+        const roomEntries = roomsRaw.split('|');
+        rooms = [];
+        for (const rEntry of roomEntries) {
+          if (!rEntry) continue;
+          const rf = rEntry.split(':');
+          if (rf.length < 5) continue;
+
+          const rId = desanitizeField(rf[0]);
+          const rName = desanitizeField(rf[1]);
+          const widthMeters = parseInt(rf[2], 10) || 40;
+          const depthMeters = parseInt(rf[3], 10) || 50;
+          const shape = desanitizeField(rf[4]) || 'stage';
+          const landmarksRaw = rf[5] || '';
+
+          const landmarks = [];
+          if (landmarksRaw.length > 0) {
+            const lmEntries = landmarksRaw.split('~');
+            for (const lmEntry of lmEntries) {
+              if (!lmEntry) continue;
+              const lf = lmEntry.split('*');
+              if (lf.length < 5) continue;
+
+              const lmId = desanitizeField(lf[0]);
+              const lmName = desanitizeField(lf[1]);
+              const lmType = desanitizeField(lf[2]) || 'custom';
+              const lmX = Math.max(0, Math.min(1, (parseInt(lf[3], 10) || 0) / 1000));
+              const lmY = Math.max(0, Math.min(1, (parseInt(lf[4], 10) || 0) / 1000));
+              const lmIcon = getFixtureIcon(lmType);
+
+              landmarks.push({
+                id: lmId,
+                name: lmName,
+                type: lmType,
+                icon: lmIcon,
+                x: lmX,
+                y: lmY
+              });
+            }
+          }
+
+          rooms.push({
+            id: rId,
+            name: rName,
+            widthMeters,
+            depthMeters,
+            shape,
+            landmarks
+          });
+        }
+      }
+
       return {
         eventName,
         activeRoomId,
         focusPinId,
-        pins
+        pins,
+        rooms
       };
     } catch (err) {
       console.warn('[ChromaUrlState] Failed to decode hash:', err);
@@ -155,34 +265,48 @@
 
   /**
    * Builds high-converting group chat message and concise preview
-   * matching: 🌈 {name} is at {colorName} ({zoneCode}) [{hex}] · {room.name} ({eventName}) 📍 {nearestPhrase}{notePart} 👥 {crewCount} crew on floor 🔗 Open floor radar: {shareUrl}
+   * matching: 🌈 {name} is at {colorName} ({zoneCode}) [{hex}] · {room.name} ({eventName}) 📍 {nearestPhrase}{notePart}{crewCount > 1 ? ` 👥 ${crewCount} on floor` : ''} 🔗 Open floor radar: {shareUrl}
    */
   function buildChatMessages(opts) {
     const opt = opts || {};
-    const userPin = opt.userPin || { name: 'You', colorName: 'Deep Cyan', zoneCode: 'E6', hex: '#08CBCF' };
-    const room = opt.room || { name: 'Main Stage' };
-    const eventName = opt.eventName || 'Festival';
+    const userPin = opt.userPin || { name: 'Me', colorName: 'Deep Cyan', zoneCode: 'E6', hex: '#08CBCF' };
+    const room = opt.room || { name: 'Main Room' };
+    const eventName = opt.eventName || 'My Event';
     const crewCount = Number.isFinite(opt.crewCount) ? opt.crewCount : 1;
     const shareUrl = opt.shareUrl || '';
-    const nearestPhrase = opt.nearestPhrase || 'Toward Sound Desk';
+    const nearestPhrase = opt.nearestPhrase || 'Center Floor';
     const note = (userPin.note || '').trim();
 
-    const name = userPin.name || 'You';
+    const name = userPin.name || 'Me';
     const colorName = userPin.colorName || 'Deep Cyan';
     const zoneCode = userPin.zoneCode || 'E6';
     const hex = userPin.hex || '#08CBCF';
-    const roomName = room.name || 'Main Stage';
+    const roomName = room.name || 'Main Room';
 
     const notePart = note ? ` · "${note}"` : '';
+    const crewPart = crewCount > 1 ? ` 👥 ${crewCount} on floor` : '';
     const gpsPart = (userPin.lat && userPin.lng) ? ` 📡 GPS: ${userPin.lat.toFixed(5)},${userPin.lng.toFixed(5)}` : '';
 
-    const previewText = `🌈 ${name} is at ${colorName} (${zoneCode}) [${hex}] · ${roomName} (${eventName}) 📍 ${nearestPhrase}${notePart} 👥 ${crewCount} crew on floor`;
+    const previewText = `🌈 ${name} is at ${colorName} (${zoneCode}) [${hex}] · ${roomName} (${eventName}) 📍 ${nearestPhrase}${notePart}${crewPart}`;
     const fullMessage = `${previewText}${gpsPart}\n🔗 Open floor radar: ${shareUrl}`;
 
     return {
       previewText,
       fullMessage
     };
+  }
+
+  /**
+   * Builds venue floorplan share message
+   */
+  function buildVenueShareMessage(opts) {
+    const opt = opts || {};
+    const eventName = opt.eventName || 'My Event';
+    const rooms = Array.isArray(opt.rooms) ? opt.rooms : (opt.activeRoom ? [opt.activeRoom] : []);
+    const roomNames = rooms.map(r => r.name || 'Main Room').join(', ') || 'Main Room';
+    const shareUrl = opt.shareUrl || '';
+
+    return `🗺️ ${eventName} floorplan (${roomNames}) — open radar & drop your spot: ${shareUrl}`;
   }
 
   return {
@@ -192,6 +316,7 @@
     encodeState,
     decodeHash,
     buildShareUrl,
-    buildChatMessages
+    buildChatMessages,
+    buildVenueShareMessage
   };
 });

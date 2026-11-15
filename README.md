@@ -14,10 +14,11 @@ In massive festival crowds (50,000+ people), mobile cellular towers saturate wit
 
 **ChromaFloor solves this with human-distinguishable 2D color space and sightlines:**
 1. **Perceptual Rainbow Grid**: The dance floor is mapped across an 8×8 grid (`A1` to `H8`) with smooth, high-contrast spectral hues (`Coral`, `Amber`, `Lime`, `Mint`, `Cyan`, `Azure`, `Cobalt`, `Rose`).
-2. **Instant Visual Communication**: In WhatsApp, Telegram, or SMS, sending *"Alex is at Deep Cyan (E6)"* gives friends an instant mental model of where you are standing relative to the stage.
-3. **Crowd Color Beacon**: Tap **⚡ Flash Beacon** to turn your entire phone screen into a high-intensity pulsing color torch (`#08CBCF`), held aloft so friends walking into your zone spot you immediately.
-4. **Walking Sightline Guide**: Locks a live guidance line from your position to any crew member on the floor, calculating exact distance (e.g. `29m · 38 steps`) and color transitions (*"Shift Vivid Mint → Bright Lime"*).
-5. **Zero-Bar Offline PWA**: Installable Progressive Web App with an offline-first Service Worker (`sw.js`). Loads instantly without cellular reception in the middle of a festival field.
+2. **Interactive Venue & Room Builder**: Build and customize rooms with real-world dimensions. Place and drag fixtures directly on the floor — including **Stage**, **DJ Booth**, **Bar**, **Sound Desk**, **Speakers**, **Toilets**, **Entrance**, **Water Points**, **Cloakroom**, and **VIP/Chill areas**.
+3. **Instant Visual Communication**: In WhatsApp, Telegram, or SMS, sending *"Alex is at Deep Cyan (E6)"* gives friends an instant mental model of where you are standing relative to the stage and bar.
+4. **Crowd Color Beacon**: Tap **⚡ Flash Beacon** to turn your entire phone screen into a high-intensity pulsing color torch (`#08CBCF`), held aloft so friends walking into your zone spot you immediately.
+5. **Walking Sightline Guide**: Locks a live guidance line from your position to any crew member on the floor, calculating exact distance (e.g. `29m · 38 steps`) and color transitions (*"Shift Vivid Mint → Bright Lime"*).
+6. **Zero-Bar Offline PWA**: Installable Progressive Web App with an offline-first Service Worker (`sw.js`). Loads instantly without cellular reception in the middle of a festival field.
 
 ---
 
@@ -28,9 +29,19 @@ In massive festival crowds (50,000+ people), mobile cellular towers saturate wit
 
 ---
 
+## 🛠️ Custom Room & Venue Floorplan Builder
+
+ChromaFloor gives event-goers and organizers a tactile way to lay out any music venue, gig space, warehouse, or festival field:
+- **Place & Drag Fixtures**: Tap any fixture in the palette (Stage, DJ Booth, Bar, Sound Desk, Speaker, Entrance, Toilets, Water, Cloakroom, Chill, Pillar, Custom) then tap on the floor to position it. Drag fixtures freely around the floor.
+- **Fixture Inspector**: Tap placed fixtures to adjust their names, change fixture types, or remove them.
+- **Room Dimension Presets**: Custom width and depth scaling from 10m to 500m with automatic grid snapping.
+- **Venue Sharing**: Tap **Share Layout** in the header to export custom floor plans directly via `#cf1=` hash link so all friends view the identical room and landmark layout.
+
+---
+
 ## 🔗 Zero-Backend `#cf1=` URL Hash Protocol
 
-ChromaFloor requires **no database, no backend server, and no user accounts**. All multi-user crew positions, venue configurations, and custom spot notes are encoded into a compact, tamper-resilient URL hash:
+ChromaFloor requires **no database, no backend server, and no user accounts**. All multi-user crew positions, custom venue configurations, room layouts, and spot notes are encoded into a compact, tamper-resilient URL hash:
 
 ```text
 https://marcelkornblum.github.io/chromafloor/#cf1=<ENCODED_PAYLOAD>
@@ -39,19 +50,12 @@ https://marcelkornblum.github.io/chromafloor/#cf1=<ENCODED_PAYLOAD>
 ### Hash Schema
 
 ```text
-#cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;pins")
+#cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;pins;rooms")
 ```
 
-Where `pins` is a delimited list:
-```text
-id:name:roomId:x1000:y1000:tsMin:colorName:note:lat:lng|...
-```
-
-- **`x1000, y1000`**: Coordinates mapped from `0..1000` for integer density.
-- **`tsMin`**: Relative minutes from baseline epoch (`1700000000000`) keeping timestamp integers tiny.
 - **Share Message Format**:
   ```text
-  🌈 Alex is at Deep Cyan (E6) [#08CBCF] · Main Stage (Festival) 📍 Toward Sound Desk · "Holding totem" 👥 4 crew on floor
+  🌈 Alex is at Deep Cyan (E6) [#08CBCF] · Main Stage (My Event) 📍 Toward Main Bar · "Holding totem" 👥 2 crew on floor
   🔗 Open floor radar: https://marcelkornblum.github.io/chromafloor/#cf1=...
   ```
 

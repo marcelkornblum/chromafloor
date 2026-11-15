@@ -1,7 +1,7 @@
 /**
  * ChromaFloor - Core Application Controller
- * Wires stage canvas radar, interactive overlay pins/sightlines, room switching,
- * group chat message sharing, walk simulator, and crowd color beacon.
+ * Wires stage canvas radar, interactive overlay pins/sightlines, custom room management,
+ * fixture placement & dragging, group chat message sharing, and crowd color beacon.
  */
 (function() {
   'use strict';
@@ -14,84 +14,39 @@
     return;
   }
 
-  // Storage Keys
-  const STORAGE_KEY_EVENT = 'chromafloor_event_name';
-  const STORAGE_KEY_USER_NAME = 'chromafloor_user_name';
-  const STORAGE_KEY_CUSTOM_ROOMS = 'chromafloor_custom_rooms';
-  const STORAGE_KEY_SAVED_SPOT = 'chromafloor_saved_spot';
-
-  // Demo Crew Profiles (matching specification)
-  function createDemoCrew() {
-    const now = Date.now();
-    return [
-      {
-        id: 'demo-maya',
-        name: 'Maya',
-        roomId: 'main',
-        x: 0.38,
-        y: 0.28,
-        ts: now - 2 * 60000,
-        colorName: 'Lime',
-        note: 'Holding neon sunflower totem'
-      },
-      {
-        id: 'demo-liam',
-        name: 'Liam',
-        roomId: 'main',
-        x: 0.65,
-        y: 0.52,
-        ts: now - 5 * 60000,
-        colorName: 'Azure',
-        note: 'Near center right, black hoodie'
-      },
-      {
-        id: 'demo-zoe',
-        name: 'Zoe',
-        roomId: 'warehouse',
-        x: 0.30,
-        y: 0.36,
-        ts: now - 9 * 60000,
-        colorName: 'Lime',
-        note: 'Left of sound desk'
-      },
-      {
-        id: 'demo-kai',
-        name: 'Kai',
-        roomId: 'warehouse',
-        x: 0.74,
-        y: 0.50,
-        ts: now - 12 * 60000,
-        colorName: 'Cobalt',
-        note: 'Getting drinks by side bar'
-      }
-    ];
-  }
+  // Storage Keys (v2 clean schema - no stale v1 demo data)
+  const STORAGE_KEY_EVENT = 'chromafloor_event_v2';
+  const STORAGE_KEY_USER_NAME = 'chromafloor_username_v2';
+  const STORAGE_KEY_ROOMS = 'chromafloor_rooms_v2';
+  const STORAGE_KEY_PINS = 'chromafloor_pins_v2';
+  const STORAGE_KEY_SAVED_SPOT = 'chromafloor_saved_spot_v2';
+  const STORAGE_KEY_THEME = 'chromafloor_theme_v2';
 
   // Application State
   const state = {
-    eventName: 'Festival',
+    eventName: 'My Event',
     activeRoomId: 'main',
     flipped: false,
     showGrid: true,
     gpsActive: false,
     gpsCoords: null,
     includeCrewInShare: true,
-    draftSpot: { x: 0.50, y: 0.56 }, // Default reticle position
+    draftSpot: { x: 0.50, y: 0.50 }, // Default reticle position
     userSpot: null,
     userDropped: false,
-    userName: 'You',
+    userName: '',
     userNote: '',
-    selectedCrewId: 'demo-maya',
-    demoCrewActive: true,
-    customRooms: [],
-    pins: createDemoCrew(),
+    selectedCrewId: '',
+    rooms: JSON.parse(JSON.stringify(ColorEngine.DEFAULT_ROOMS)),
+    pins: [],
     beaconOpen: false,
     beaconPulsing: false,
-    walkingSimActive: false,
-    walkingSimTimer: null
+    layoutEditMode: false,
+    armedFixtureType: null,
+    selectedFixtureId: null
   };
 
-  // Load custom rooms and preferences from localStorage
+  // Load preferences and rooms from localStorage
   try {
     const savedEvent = localStorage.getItem(STORAGE_KEY_EVENT);
     if (savedEvent) state.eventName = savedEvent;
@@ -99,10 +54,16 @@
     const savedName = localStorage.getItem(STORAGE_KEY_USER_NAME);
     if (savedName) state.userName = savedName;
 
-    const savedCustomRooms = localStorage.getItem(STORAGE_KEY_CUSTOM_ROOMS);
-    if (savedCustomRooms) {
-      const parsed = JSON.parse(savedCustomRooms);
-      if (Array.isArray(parsed)) state.customRooms = parsed;
+    const savedRooms = localStorage.getItem(STORAGE_KEY_ROOMS);
+    if (savedRooms) {
+      const parsed = JSON.parse(savedRooms);
+      if (Array.isArray(parsed) && parsed.length > 0) state.rooms = parsed;
+    }
+
+    const savedPins = localStorage.getItem(STORAGE_KEY_PINS);
+    if (savedPins) {
+      const parsed = JSON.parse(savedPins);
+      if (Array.isArray(parsed)) state.pins = parsed;
     }
 
     const savedSpotJson = localStorage.getItem(STORAGE_KEY_SAVED_SPOT);
@@ -118,14 +79,20 @@
     console.warn('[ChromaFloor] LocalStorage read warning:', err);
   }
 
-  // Combine default rooms with any user-created custom rooms
-  function getAllRooms() {
-    return [...ColorEngine.DEFAULT_ROOMS, ...state.customRooms];
+  function saveRooms() {
+    try {
+      localStorage.setItem(STORAGE_KEY_ROOMS, JSON.stringify(state.rooms));
+    } catch (_) {}
+  }
+
+  function savePins() {
+    try {
+      localStorage.setItem(STORAGE_KEY_PINS, JSON.stringify(state.pins));
+    } catch (_) {}
   }
 
   function getActiveRoom() {
-    const rooms = getAllRooms();
-    return rooms.find(r => r.id === state.activeRoomId) || rooms[0] || ColorEngine.DEFAULT_ROOMS[0];
+    return state.rooms.find(r => r.id === state.activeRoomId) || state.rooms[0] || ColorEngine.DEFAULT_ROOMS[0];
   }
 
   // DOM Elements Cache
@@ -133,28 +100,46 @@
     // Header
     eventBadgeBtn: document.getElementById('event-badge-btn'),
     eventNameLabel: document.getElementById('event-name-label'),
-    btnDemoCrew: document.getElementById('btn-demo-crew'),
+    btnEditLayout: document.getElementById('btn-edit-layout'),
+    editLayoutBtnText: document.getElementById('edit-layout-btn-text'),
+    btnShareVenue: document.getElementById('btn-share-venue'),
     btnThemeToggle: document.getElementById('btn-theme-toggle'),
 
-    // Rooms
+    // Rooms Strip
     roomTabs: document.getElementById('room-tabs'),
+    btnRoomSettings: document.getElementById('btn-room-settings'),
     btnAddRoom: document.getElementById('btn-add-room'),
-    addRoomModal: document.getElementById('add-room-modal'),
-    newRoomName: document.getElementById('new-room-name'),
-    newRoomWidth: document.getElementById('new-room-width'),
-    newRoomDepth: document.getElementById('new-room-depth'),
-    newRoomShape: document.getElementById('new-room-shape'),
-    btnSaveRoom: document.getElementById('btn-save-room'),
-    btnCancelRoom: document.getElementById('btn-cancel-room'),
 
-    // Map & Canvas
+    // Map Actions
+    btnMapEditLayout: document.getElementById('btn-map-edit-layout'),
+    mapEditBtnLabel: document.getElementById('map-edit-btn-label'),
+    btnFlipView: document.getElementById('btn-flip-view'),
+    btnToggleGrid: document.getElementById('btn-toggle-grid'),
+    btnGpsAssist: document.getElementById('btn-gps-assist'),
+
+    // Venue & Fixture Layout Editor Panel
+    layoutEditorPanel: document.getElementById('layout-editor-panel'),
+    editorRoomName: document.getElementById('editor-room-name'),
+    editorRoomWidth: document.getElementById('editor-room-width'),
+    editorRoomDepth: document.getElementById('editor-room-depth'),
+    btnEditorSnapGrid: document.getElementById('btn-editor-snap-grid'),
+    btnEditorClearLandmarks: document.getElementById('btn-editor-clear-landmarks'),
+    btnEditorDeleteRoom: document.getElementById('btn-editor-delete-room'),
+    btnEditorDone: document.getElementById('btn-editor-done'),
+    editorModeHint: document.getElementById('editor-mode-hint'),
+    fixturePalette: document.getElementById('fixture-palette'),
+    selectedFixtureBar: document.getElementById('selected-fixture-bar'),
+    selectedFixtureIcon: document.getElementById('selected-fixture-icon'),
+    selectedFixtureName: document.getElementById('selected-fixture-name'),
+    selectedFixtureType: document.getElementById('selected-fixture-type'),
+    selectedFixturePos: document.getElementById('selected-fixture-pos'),
+    btnDeleteFixture: document.getElementById('btn-delete-fixture'),
+
+    // Map Viewport
     mapViewport: document.getElementById('map-viewport'),
     floorCanvas: document.getElementById('floor-canvas'),
     mapOverlay: document.getElementById('map-overlay'),
     orientationLabel: document.getElementById('orientation-label'),
-    btnFlipView: document.getElementById('btn-flip-view'),
-    btnToggleGrid: document.getElementById('btn-toggle-grid'),
-    btnGpsAssist: document.getElementById('btn-gps-assist'),
     entranceLabel: document.getElementById('entrance-label'),
     roomDimensionsLabel: document.getElementById('room-dimensions-label'),
     quickSnapList: document.getElementById('quick-snap-list'),
@@ -189,7 +174,8 @@
     // Wayfinder & Crew
     crewWayfinderCard: document.getElementById('crew-wayfinder-card'),
     crewActiveCount: document.getElementById('crew-active-count'),
-    btnWalkSim: document.getElementById('btn-walk-sim'),
+    btnClearPins: document.getElementById('btn-clear-pins'),
+    crewEmptyState: document.getElementById('crew-empty-state'),
     crewList: document.getElementById('crew-list'),
     wayfinderBanner: document.getElementById('wayfinder-banner'),
     wayfinderHeadline: document.getElementById('wayfinder-headline'),
@@ -198,7 +184,7 @@
     wayfinderShiftText: document.getElementById('wayfinder-shift-text'),
     wayfinderLandmarkText: document.getElementById('wayfinder-landmark-text'),
 
-    // Color Beacon
+    // Color Beacon Modal
     btnFlashBeacon: document.getElementById('btn-flash-beacon'),
     beaconModal: document.getElementById('beacon-modal'),
     beaconPulseBtn: document.getElementById('beacon-pulse-btn'),
@@ -208,7 +194,17 @@
     beaconColorTitle: document.getElementById('beacon-color-title'),
     beaconHexCode: document.getElementById('beacon-hex-code'),
     beaconUserMeta: document.getElementById('beacon-user-meta'),
-    beaconBrightnessTip: document.getElementById('beacon-brightness-tip')
+    beaconBrightnessTip: document.getElementById('beacon-brightness-tip'),
+
+    // Add Room Modal
+    addRoomModal: document.getElementById('add-room-modal'),
+    newRoomName: document.getElementById('new-room-name'),
+    newRoomWidth: document.getElementById('new-room-width'),
+    newRoomDepth: document.getElementById('new-room-depth'),
+    newRoomTemplate: document.getElementById('new-room-template'),
+    newRoomShape: document.getElementById('new-room-shape'),
+    btnSaveRoom: document.getElementById('btn-save-room'),
+    btnCancelRoom: document.getElementById('btn-cancel-room')
   };
 
   // Toast feedback helper
@@ -266,19 +262,21 @@
 
     ctx.save();
 
-    // 2. Concentric acoustic waves radiating from stage
-    const originX = width * 0.5;
-    const originY = room.shape === 'dome'
-      ? height * 0.35
-      : (state.flipped ? height : 0);
-    const waveStep = Math.round(Math.min(width, height) / 6.5);
+    // 2. Concentric acoustic soundwaves radiating from placed Stage / DJ Booth
+    const stageOrigin = ColorEngine.getStageOrigin(room);
+    if (stageOrigin.hasStage) {
+      const originX = (state.flipped ? (1 - stageOrigin.x) : stageOrigin.x) * width;
+      const originY = (state.flipped ? (1 - stageOrigin.y) : stageOrigin.y) * height;
+      const waveStep = Math.round(Math.min(width, height) / 6.5);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
-    ctx.lineWidth = 1.8;
-    for (let r = waveStep; r < Math.hypot(width, height); r += waveStep) {
-      ctx.beginPath();
-      ctx.arc(originX, originY, r, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+      ctx.lineWidth = 1.8;
+      const maxR = Math.hypot(Math.max(originX, width - originX), Math.max(originY, height - originY));
+      for (let r = waveStep; r < maxR; r += waveStep) {
+        ctx.beginPath();
+        ctx.arc(originX, originY, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     // 3. 8x8 Grid lines & headers (when toggled on)
@@ -323,13 +321,13 @@
       }
     }
 
-    // 4. Animated dashed sightline to selected crew member
+    // 4. Sightline to selected crew member
     const selectedFriend = state.pins.find(p => p.id === state.selectedCrewId && p.roomId === state.activeRoomId);
     const mySpot = (state.userDropped && state.userSpot && state.userSpot.roomId === state.activeRoomId)
       ? state.userSpot
       : state.draftSpot;
 
-    if (selectedFriend && mySpot) {
+    if (selectedFriend && mySpot && selectedFriend.id !== 'me') {
       const fromPx = (state.flipped ? (1 - mySpot.x) : mySpot.x) * width;
       const fromPy = (state.flipped ? (1 - mySpot.y) : mySpot.y) * height;
       const toPx = (state.flipped ? (1 - selectedFriend.x) : selectedFriend.x) * width;
@@ -376,7 +374,7 @@
   }
 
   /**
-   * Syncs DOM overlay markers (landmarks, crew pins, sightline badge, reticle)
+   * Syncs DOM overlay markers (placed landmarks, crew pins, reticle)
    */
   function syncOverlay() {
     if (!els.mapOverlay || !els.floorCanvas) return;
@@ -384,24 +382,99 @@
     const overlay = els.mapOverlay;
     overlay.innerHTML = '';
 
-    // 1. Landmarks
+    // 1. Placed Landmarks / Fixtures
     (room.landmarks || []).forEach(lm => {
       const pxPercent = (state.flipped ? (1 - lm.x) : lm.x) * 100;
       const pyPercent = (state.flipped ? (1 - lm.y) : lm.y) * 100;
 
       const pill = document.createElement('button');
       pill.type = 'button';
-      pill.className = 'landmark-pill absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black text-white text-xs font-semibold flex items-center gap-1.5 shadow-md border border-white/20 transition-transform active:scale-95 cursor-pointer z-10';
+      pill.className = `landmark-pill absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-md transition-transform select-none z-10 ${
+        state.layoutEditMode ? 'editable' : 'cursor-pointer active:scale-95'
+      } ${lm.id === state.selectedFixtureId ? 'selected-fixture' : ''}`;
+      pill.setAttribute('data-landmark-id', lm.id);
+      pill.setAttribute('data-type', lm.type || 'custom');
       pill.style.left = `${pxPercent}%`;
       pill.style.top = `${pyPercent}%`;
-      pill.innerHTML = `<span>${lm.icon || '📍'}</span><span class="truncate max-w-[100px]">${lm.name}</span>`;
+      pill.innerHTML = `<span class="landmark-icon">${lm.icon || '📍'}</span><span class="truncate max-w-[120px]">${lm.name}</span>`;
 
-      pill.addEventListener('click', (e) => {
-        e.stopPropagation();
-        state.draftSpot = { x: lm.x, y: lm.y };
-        updateAll();
-        showToast(`Snapped to ${lm.name}`);
-      });
+      if (!state.layoutEditMode) {
+        // Normal mode: snap reticle
+        pill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.draftSpot = { x: lm.x, y: lm.y };
+          updateAll();
+          showToast(`Snapped to ${lm.name}`);
+        });
+      } else {
+        // Layout editing mode: direct selection & dragging
+        let pointerMoved = false;
+
+        const onPointerMove = (moveEvt) => {
+          pointerMoved = true;
+          const rect = els.floorCanvas.getBoundingClientRect();
+          let nx = (moveEvt.clientX - rect.left) / rect.width;
+          let ny = (moveEvt.clientY - rect.top) / rect.height;
+          if (state.flipped) {
+            nx = 1 - nx;
+            ny = 1 - ny;
+          }
+
+          if (els.btnEditorSnapGrid && els.btnEditorSnapGrid.checked) {
+            nx = Math.round(nx / 0.05) * 0.05;
+            ny = Math.round(ny / 0.05) * 0.05;
+          }
+
+          lm.x = Math.max(0.02, Math.min(0.98, Math.round(nx * 1000) / 1000));
+          lm.y = Math.max(0.02, Math.min(0.98, Math.round(ny * 1000) / 1000));
+
+          const curPxPercent = (state.flipped ? (1 - lm.x) : lm.x) * 100;
+          const curPyPercent = (state.flipped ? (1 - lm.y) : lm.y) * 100;
+          pill.style.left = `${curPxPercent}%`;
+          pill.style.top = `${curPyPercent}%`;
+
+          // Live update selected fixture position readout
+          if (els.selectedFixturePos) {
+            const spot = ColorEngine.getSpotColor(lm.x, lm.y);
+            els.selectedFixturePos.textContent = `${spot.zoneCode} · ${Math.round(lm.x * 100)}%, ${Math.round(lm.y * 100)}%`;
+          }
+
+          // Live update stage orientation / canvas waves if this fixture is stage/dj/entrance
+          if (lm.type === 'stage' || lm.type === 'dj') {
+            updateOrientationLabel();
+            renderCanvas();
+          } else if (lm.type === 'entrance') {
+            updateEntranceLabel();
+          }
+        };
+
+        const onPointerUp = (upEvt) => {
+          pill.removeEventListener('pointermove', onPointerMove);
+          pill.removeEventListener('pointerup', onPointerUp);
+          pill.removeEventListener('pointercancel', onPointerUp);
+          try { pill.releasePointerCapture(upEvt.pointerId); } catch (_) {}
+          pill.classList.remove('dragging');
+
+          if (pointerMoved) {
+            saveRooms();
+          }
+          updateAll();
+        };
+
+        pill.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          pointerMoved = false;
+          state.selectedFixtureId = lm.id;
+          pill.classList.add('dragging');
+          try { pill.setPointerCapture(e.pointerId); } catch (_) {}
+
+          pill.addEventListener('pointermove', onPointerMove);
+          pill.addEventListener('pointerup', onPointerUp);
+          pill.addEventListener('pointercancel', onPointerUp);
+
+          updateSelectedFixtureBar();
+        });
+      }
 
       overlay.appendChild(pill);
     });
@@ -414,7 +487,6 @@
       const pyPercent = (state.flipped ? (1 - pin.y) : pin.y) * 100;
       const spotColor = ColorEngine.getSpotColor(pin.x, pin.y);
 
-      // Relative time formatted
       const minutesAgo = Math.max(1, Math.round((Date.now() - (pin.ts || Date.now())) / 60000));
       const timeStr = minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
 
@@ -449,12 +521,13 @@
       overlay.appendChild(pinEl);
     });
 
-    // 3. User Dropped Pin (if in active room)
-    if (state.userDropped && state.userSpot && state.userSpot.roomId === state.activeRoomId) {
+    // 3. User Dropped Pin (if in active room and not already shown as a crew pin)
+    if (state.userDropped && state.userSpot && state.userSpot.roomId === state.activeRoomId && !state.pins.some(p => p.id === 'me')) {
       const uSpot = state.userSpot;
       const pxPercent = (state.flipped ? (1 - uSpot.x) : uSpot.x) * 100;
       const pyPercent = (state.flipped ? (1 - uSpot.y) : uSpot.y) * 100;
       const uColor = ColorEngine.getSpotColor(uSpot.x, uSpot.y);
+      const safeName = state.userName || 'Me';
 
       const uPin = document.createElement('div');
       uPin.className = 'user-pin absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-20';
@@ -465,7 +538,7 @@
           ★
         </div>
         <div class="mt-1 px-2 py-0.5 rounded-md bg-emerald-700/90 border border-white/20 text-white font-bold text-[10px] whitespace-nowrap shadow-md">
-          YOU (${state.userName})
+          ${safeName}
         </div>
       `;
       overlay.appendChild(uPin);
@@ -477,7 +550,7 @@
       ? state.userSpot
       : state.draftSpot;
 
-    if (activeTarget && originSpot) {
+    if (activeTarget && originSpot && activeTarget.id !== 'me') {
       const fromX = (state.flipped ? (1 - originSpot.x) : originSpot.x);
       const fromY = (state.flipped ? (1 - originSpot.y) : originSpot.y);
       const toX = (state.flipped ? (1 - activeTarget.x) : activeTarget.x);
@@ -512,7 +585,6 @@
     reticle.style.left = `${rXPercent}%`;
     reticle.style.top = `${rYPercent}%`;
 
-    // Flip label below marker if near the top edge (< 18%) so it never clips!
     const isNearTop = (state.flipped ? (1 - dSpot.y) : dSpot.y) < 0.18;
 
     reticle.innerHTML = `
@@ -523,7 +595,6 @@
         </div>
       ` : ''}
       <div class="relative w-10 h-10 flex items-center justify-center">
-        <!-- Target outer pulse circle -->
         <div class="absolute inset-0 rounded-full border-2 border-white/90 shadow-lg"></div>
         <div class="absolute w-12 h-[2px] bg-white/80"></div>
         <div class="absolute h-12 w-[2px] bg-white/80"></div>
@@ -541,7 +612,7 @@
   }
 
   /**
-   * Updates state from pointer / touch coordinates on the viewport
+   * Updates state from pointer coordinates on the viewport
    */
   function handlePointer(clientX, clientY, checkCrewClick) {
     if (!els.floorCanvas) return false;
@@ -585,7 +656,7 @@
     const dColor = ColorEngine.getSpotColor(state.draftSpot.x, state.draftSpot.y);
     const nearest = ColorEngine.getNearestLandmark(state.draftSpot.x, state.draftSpot.y, room);
 
-    const safeName = (els.userNameInput ? els.userNameInput.value.trim() : state.userName) || 'You';
+    const safeName = (els.userNameInput ? els.userNameInput.value.trim() : state.userName) || 'Me';
     const safeNote = (els.userNoteInput ? els.userNoteInput.value.trim() : state.userNote) || '';
 
     const myPin = {
@@ -603,15 +674,16 @@
       lng: (state.gpsActive && state.gpsCoords) ? state.gpsCoords.longitude : null
     };
 
-    // Filter pins based on includeCrew checkbox
-    const otherPins = state.includeCrewInShare ? state.pins : [];
-    const allPins = [myPin, ...otherPins.filter(p => p.id !== 'me')];
+    // Include other pins based on includeCrew checkbox
+    const otherPins = state.includeCrewInShare ? state.pins.filter(p => p.id !== 'me') : [];
+    const allPins = state.userDropped ? [myPin, ...otherPins] : otherPins;
 
     const stateObj = {
       eventName: state.eventName,
       activeRoomId: state.activeRoomId,
-      focusPinId: 'me',
-      pins: allPins
+      focusPinId: state.userDropped ? 'me' : '',
+      pins: allPins,
+      rooms: state.rooms
     };
 
     const shareUrl = UrlState.buildShareUrl(stateObj);
@@ -637,6 +709,219 @@
   }
 
   /**
+   * Updates Orientation Label based on placed stage / dj booth
+   */
+  function updateOrientationLabel() {
+    if (!els.orientationLabel) return;
+    const room = getActiveRoom();
+    const stageOrigin = ColorEngine.getStageOrigin(room);
+
+    if (stageOrigin.hasStage) {
+      const normX = state.flipped ? (1 - stageOrigin.x) : stageOrigin.x;
+      const normY = state.flipped ? (1 - stageOrigin.y) : stageOrigin.y;
+      let dir = '↑';
+      if (normY > 0.65) dir = '↓';
+      else if (normX < 0.3) dir = '←';
+      else if (normX > 0.7) dir = '→';
+      else if (normX > 0.35 && normX < 0.65 && normY > 0.35 && normY < 0.65) dir = '◎';
+      els.orientationLabel.textContent = `${stageOrigin.name.toUpperCase()} ${dir}`;
+    } else {
+      els.orientationLabel.textContent = 'FLOOR RADAR';
+    }
+  }
+
+  /**
+   * Updates Entrance Label based on placed entrance fixture
+   */
+  function updateEntranceLabel() {
+    if (!els.entranceLabel) return;
+    const room = getActiveRoom();
+    const entryLm = (room.landmarks || []).find(lm => lm.type === 'entrance');
+
+    if (entryLm) {
+      const entryColor = ColorEngine.getSpotColor(entryLm.x, entryLm.y);
+      els.entranceLabel.textContent = `ENTRANCE: ${entryLm.name.toUpperCase()} (${entryColor.zoneCode})`;
+    } else {
+      els.entranceLabel.textContent = 'CUSTOM FLOORPLAN';
+    }
+  }
+
+  /**
+   * Updates quick snaps row dynamically from placed fixtures + Center Floor
+   */
+  function updateQuickSnaps() {
+    if (!els.quickSnapList) return;
+    const room = getActiveRoom();
+    els.quickSnapList.innerHTML = '';
+
+    const snaps = [
+      ...(room.landmarks || []).map(lm => ({ name: `${lm.icon || '📍'} ${lm.name}`, x: lm.x, y: lm.y })),
+      { name: '◎ Center Floor', x: 0.50, y: 0.50 }
+    ];
+
+    snaps.forEach(s => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'snap-btn';
+      btn.textContent = s.name;
+      btn.addEventListener('click', () => {
+        state.draftSpot = { x: s.x, y: s.y };
+        updateAll();
+        showToast(`Snapped to ${s.name}`);
+      });
+      els.quickSnapList.appendChild(btn);
+    });
+  }
+
+  /**
+   * Updates note preset chips from active room landmarks
+   */
+  function updateNotePresets() {
+    if (!els.notePresetChips) return;
+    const room = getActiveRoom();
+    els.notePresetChips.innerHTML = '';
+
+    const lms = (room.landmarks || []).slice(0, 5);
+    const presets = [];
+    lms.forEach(lm => {
+      presets.push(`At ${lm.name}`);
+      presets.push(`Near ${lm.name}`);
+    });
+
+    if (presets.length === 0) {
+      presets.push('Center Floor', 'By the bar', 'Near the stage');
+    }
+
+    const uniquePresets = Array.from(new Set(presets)).slice(0, 5);
+    uniquePresets.forEach(text => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip-btn';
+      btn.textContent = text;
+      btn.addEventListener('click', () => {
+        if (els.userNoteInput) {
+          els.userNoteInput.value = text;
+          state.userNote = text;
+          updateAll();
+        }
+      });
+      els.notePresetChips.appendChild(btn);
+    });
+  }
+
+  /**
+   * Updates Fixture Palette active/armed state
+   */
+  function updatePaletteUI() {
+    if (els.fixturePalette) {
+      els.fixturePalette.querySelectorAll('.fixture-chip').forEach(chip => {
+        const type = chip.getAttribute('data-fixture-type');
+        chip.classList.toggle('armed', state.armedFixtureType === type);
+      });
+    }
+
+    if (els.mapViewport) {
+      els.mapViewport.classList.toggle('placing-fixture', !!state.armedFixtureType);
+    }
+
+    if (els.editorModeHint) {
+      if (state.armedFixtureType) {
+        const def = ColorEngine.FIXTURE_TYPES[state.armedFixtureType] || { label: 'Fixture' };
+        els.editorModeHint.textContent = `Tap anywhere on the floor map to place ${def.label} (or drag existing items)`;
+      } else {
+        els.editorModeHint.textContent = 'Tap a fixture below then tap the floor to place it — or drag any placed item directly on the map:';
+      }
+    }
+  }
+
+  /**
+   * Updates Selected Fixture Inspector Bar
+   */
+  function updateSelectedFixtureBar() {
+    if (!els.selectedFixtureBar) return;
+    const room = getActiveRoom();
+    const lm = state.selectedFixtureId
+      ? (room.landmarks || []).find(l => l.id === state.selectedFixtureId)
+      : null;
+
+    if (lm && state.layoutEditMode) {
+      els.selectedFixtureBar.classList.remove('hidden');
+      if (els.selectedFixtureIcon) els.selectedFixtureIcon.textContent = lm.icon || '📍';
+      if (els.selectedFixtureName && document.activeElement !== els.selectedFixtureName) {
+        els.selectedFixtureName.value = lm.name;
+      }
+      if (els.selectedFixtureType) {
+        els.selectedFixtureType.value = lm.type || 'custom';
+      }
+      if (els.selectedFixturePos) {
+        const spot = ColorEngine.getSpotColor(lm.x, lm.y);
+        els.selectedFixturePos.textContent = `${spot.zoneCode} · ${Math.round(lm.x * 100)}%, ${Math.round(lm.y * 100)}%`;
+      }
+    } else {
+      els.selectedFixtureBar.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Toggles and updates Layout Editor Panel
+   */
+  function setLayoutEditMode(enable) {
+    state.layoutEditMode = !!enable;
+    if (!state.layoutEditMode) {
+      state.armedFixtureType = null;
+      state.selectedFixtureId = null;
+    }
+    updateEditorUI();
+    updateAll();
+    if (state.layoutEditMode) {
+      showToast('Venue editor active — tap or drag fixtures');
+    }
+  }
+
+  function updateEditorUI() {
+    const room = getActiveRoom();
+
+    if (els.layoutEditorPanel) {
+      els.layoutEditorPanel.classList.toggle('hidden', !state.layoutEditMode);
+    }
+    if (els.btnEditLayout) {
+      els.btnEditLayout.classList.toggle('active', state.layoutEditMode);
+    }
+    if (els.btnMapEditLayout) {
+      els.btnMapEditLayout.classList.toggle('active', state.layoutEditMode);
+    }
+    if (els.editLayoutBtnText) {
+      els.editLayoutBtnText.textContent = state.layoutEditMode ? 'Done Editing' : 'Edit Venue';
+    }
+    if (els.mapEditBtnLabel) {
+      els.mapEditBtnLabel.textContent = state.layoutEditMode ? 'Done' : 'Edit Floor';
+    }
+    if (els.mapViewport) {
+      els.mapViewport.classList.toggle('layout-editing', state.layoutEditMode);
+    }
+
+    if (state.layoutEditMode) {
+      if (els.editorRoomName && document.activeElement !== els.editorRoomName) {
+        els.editorRoomName.value = room.name;
+      }
+      if (els.editorRoomWidth && document.activeElement !== els.editorRoomWidth) {
+        els.editorRoomWidth.value = room.widthMeters;
+      }
+      if (els.editorRoomDepth && document.activeElement !== els.editorRoomDepth) {
+        els.editorRoomDepth.value = room.depthMeters;
+      }
+      if (els.btnEditorDeleteRoom) {
+        els.btnEditorDeleteRoom.disabled = state.rooms.length <= 1;
+        els.btnEditorDeleteRoom.style.opacity = state.rooms.length <= 1 ? '0.4' : '1';
+        els.btnEditorDeleteRoom.style.cursor = state.rooms.length <= 1 ? 'not-allowed' : 'pointer';
+      }
+    }
+
+    updatePaletteUI();
+    updateSelectedFixtureBar();
+  }
+
+  /**
    * Updates all UI widgets, cards, inputs, and previews
    */
   function updateAll() {
@@ -648,17 +933,13 @@
     if (els.eventNameLabel) {
       els.eventNameLabel.textContent = state.eventName;
     }
-    if (els.btnDemoCrew) {
-      els.btnDemoCrew.classList.toggle('bg-amber-500/20', state.demoCrewActive);
-    }
 
     // 2. Room Tabs
     if (els.roomTabs) {
       els.roomTabs.innerHTML = '';
-      const allRooms = getAllRooms();
-      allRooms.forEach(r => {
+      state.rooms.forEach(r => {
         const count = state.pins.filter(p => p.roomId === r.id).length
-          + (state.userDropped && state.userSpot && state.userSpot.roomId === r.id ? 1 : 0);
+          + (state.userDropped && state.userSpot && state.userSpot.roomId === r.id && !state.pins.some(p => p.id === 'me') ? 1 : 0);
         const isActive = r.id === state.activeRoomId;
 
         const tab = document.createElement('button');
@@ -668,11 +949,14 @@
 
         tab.addEventListener('click', () => {
           state.activeRoomId = r.id;
+          state.selectedFixtureId = null;
+          state.armedFixtureType = null;
           const firstCrewInRoom = state.pins.find(p => p.roomId === r.id);
           if (firstCrewInRoom) {
             state.selectedCrewId = firstCrewInRoom.id;
           }
           cachedFloorCanvas = null;
+          updateEditorUI();
           updateAll();
         });
 
@@ -681,38 +965,15 @@
     }
 
     // 3. Map Viewport Meta
-    if (els.orientationLabel) {
-      els.orientationLabel.textContent = state.flipped ? '● FACING ENTRANCE (STAGE BEHIND) ↓' : '● FACING STAGE ↑';
-    }
-    if (els.entranceLabel) {
-      els.entranceLabel.textContent = state.flipped ? '↑ STAGE / DJ BOOTH' : '↓ BACK ENTRANCE / MAIN ARCH';
-    }
+    updateOrientationLabel();
+    updateEntranceLabel();
     if (els.roomDimensionsLabel) {
       els.roomDimensionsLabel.textContent = `${room.widthMeters}M × ${room.depthMeters}M`;
     }
 
-    // 4. Quick Snap List
-    if (els.quickSnapList) {
-      els.quickSnapList.innerHTML = '';
-      const snaps = [
-        ...(room.landmarks || []).map(lm => ({ name: lm.name, x: lm.x, y: lm.y })),
-        { name: 'Center Floor', x: 0.50, y: 0.50 },
-        { name: 'Front Rail', x: 0.50, y: 0.08 }
-      ];
-
-      snaps.forEach(s => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'snap-btn px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/15 text-white/90 text-xs font-medium transition-colors shrink-0';
-        btn.textContent = s.name;
-        btn.addEventListener('click', () => {
-          state.draftSpot = { x: s.x, y: s.y };
-          updateAll();
-          showToast(`Snapped to ${s.name}`);
-        });
-        els.quickSnapList.appendChild(btn);
-      });
-    }
+    // 4. Quick Snap & Note Presets
+    updateQuickSnaps();
+    updateNotePresets();
 
     // 5. Spot Swatch Card
     if (els.swatchCard) {
@@ -729,70 +990,107 @@
       els.swatchHex.textContent = dColor.hex;
     }
     if (els.swatchPositionMeta) {
-      els.swatchPositionMeta.textContent = `${dColor.fullPositionLabel} · ${nearest.phrase}`;
+      els.swatchPositionMeta.textContent = `${dColor.fullPositionLabel} · ${nearest.phrase || 'Open floor'}`;
     }
 
     // 6. Crew List & Wayfinder
-    const activeCrew = state.pins.filter(p => p.roomId === state.activeRoomId);
+    const totalPinsCount = state.pins.length + (state.userDropped && state.userSpot && !state.pins.some(p => p.id === 'me') ? 1 : 0);
+
     if (els.crewActiveCount) {
-      els.crewActiveCount.textContent = `${activeCrew.length + (state.userDropped ? 1 : 0)} active`;
+      els.crewActiveCount.textContent = `${totalPinsCount} ON FLOOR`;
     }
 
-    if (els.crewList) {
-      els.crewList.innerHTML = '';
-      state.pins.forEach(pin => {
-        const pColor = ColorEngine.getSpotColor(pin.x, pin.y);
-        const isSelected = pin.id === state.selectedCrewId;
-        const minutesAgo = Math.max(1, Math.round((Date.now() - (pin.ts || Date.now())) / 60000));
-        const timeStr = minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
+    if (totalPinsCount === 0) {
+      if (els.crewEmptyState) els.crewEmptyState.classList.remove('hidden');
+      if (els.btnClearPins) els.btnClearPins.classList.add('hidden');
+      if (els.wayfinderBanner) els.wayfinderBanner.classList.add('hidden');
+      if (els.crewList) els.crewList.innerHTML = '';
+    } else {
+      if (els.crewEmptyState) els.crewEmptyState.classList.add('hidden');
+      if (els.btnClearPins) els.btnClearPins.classList.remove('hidden');
 
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.className = `crew-card ${isSelected ? 'selected' : ''}`;
-        card.innerHTML = `
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="w-4 h-4 rounded-full shrink-0 border border-black/30 shadow-sm" style="background-color: ${pColor.hex}"></span>
-            <div class="flex flex-col min-w-0">
-              <span class="font-bold text-xs truncate text-white">${pin.name}</span>
-              <span class="text-[10px] text-white/60 truncate">${pin.note || pColor.colorName}</span>
+      if (els.crewList) {
+        els.crewList.innerHTML = '';
+        state.pins.forEach(pin => {
+          const pColor = ColorEngine.getSpotColor(pin.x, pin.y);
+          const isSelected = pin.id === state.selectedCrewId;
+          const minutesAgo = Math.max(1, Math.round((Date.now() - (pin.ts || Date.now())) / 60000));
+          const timeStr = minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
+
+          const card = document.createElement('div');
+          card.className = `crew-card ${isSelected ? 'selected' : ''}`;
+          card.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
+              <span class="w-4 h-4 rounded-full shrink-0 border border-black/30 shadow-sm" style="background-color: ${pColor.hex}"></span>
+              <div class="flex flex-col min-w-0">
+                <span class="font-bold text-xs truncate text-white">${pin.name}</span>
+                <span class="text-[10px] text-white/60 truncate">${pin.note || pColor.colorName}</span>
+              </div>
             </div>
-          </div>
-          <div class="flex flex-col items-end shrink-0 leading-tight">
-            <span class="font-mono font-bold text-xs text-white/90">${pColor.zoneCode}</span>
-            <span class="text-[10px] text-white/50">${timeStr}</span>
-          </div>
-        `;
+            <div class="flex items-center gap-1.5 shrink-0">
+              <div class="flex flex-col items-end leading-tight">
+                <span class="font-mono font-bold text-xs text-white/90">${pColor.zoneCode}</span>
+                <span class="text-[10px] text-white/50">${timeStr}</span>
+              </div>
+              <button type="button" class="crew-card-remove" title="Remove pin" aria-label="Remove pin">✕</button>
+            </div>
+          `;
 
-        card.addEventListener('click', () => {
-          state.selectedCrewId = pin.id;
-          state.activeRoomId = pin.roomId;
-          cachedFloorCanvas = null;
-          updateAll();
+          // Card click selects pin
+          card.querySelector('.flex-1').addEventListener('click', () => {
+            state.selectedCrewId = pin.id;
+            state.activeRoomId = pin.roomId;
+            cachedFloorCanvas = null;
+            updateAll();
+            showToast(`Guidance sightline locked to ${pin.name}`);
+          });
+
+          // Remove individual pin
+          card.querySelector('.crew-card-remove').addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.pins = state.pins.filter(p => p.id !== pin.id);
+            if (state.selectedCrewId === pin.id) {
+              state.selectedCrewId = state.pins.length > 0 ? state.pins[0].id : '';
+            }
+            if (pin.id === 'me') {
+              state.userDropped = false;
+              state.userSpot = null;
+              try { localStorage.removeItem(STORAGE_KEY_SAVED_SPOT); } catch (_) {}
+            }
+            savePins();
+            updateAll();
+            showToast(`Removed ${pin.name}`);
+          });
+
+          els.crewList.appendChild(card);
         });
-
-        els.crewList.appendChild(card);
-      });
-    }
-
-    // Wayfinder banner
-    const selectedFriend = state.pins.find(p => p.id === state.selectedCrewId) || state.pins[0];
-    if (selectedFriend && els.wayfinderBanner) {
-      const origin = (state.userDropped && state.userSpot && state.userSpot.roomId === selectedFriend.roomId)
-        ? state.userSpot
-        : state.draftSpot;
-      const friendRoom = getAllRooms().find(r => r.id === selectedFriend.roomId) || room;
-      const directions = ColorEngine.getWalkingDirections(origin, selectedFriend, friendRoom);
-
-      if (els.wayfinderHeadline) els.wayfinderHeadline.textContent = directions.headline;
-      if (els.wayfinderTarget) els.wayfinderTarget.textContent = `→ ${selectedFriend.name} (${directions.toColor.zoneCode})`;
-      if (els.wayfinderGradientBar) {
-        els.wayfinderGradientBar.style.background = `linear-gradient(90deg, ${directions.fromColor.hex} 0%, ${directions.toColor.hex} 100%)`;
       }
-      if (els.wayfinderShiftText) {
-        els.wayfinderShiftText.textContent = `Shift ${directions.fromColor.colorName} → ${directions.toColor.colorName}`;
-      }
-      if (els.wayfinderLandmarkText) {
-        els.wayfinderLandmarkText.textContent = selectedFriend.note || directions.nearest.phrase || '';
+
+      // Wayfinder banner
+      const selectedFriend = state.pins.find(p => p.id === state.selectedCrewId && p.id !== 'me')
+        || state.pins.find(p => p.id !== 'me');
+
+      if (selectedFriend && els.wayfinderBanner) {
+        els.wayfinderBanner.classList.remove('hidden');
+        const origin = (state.userDropped && state.userSpot && state.userSpot.roomId === selectedFriend.roomId)
+          ? state.userSpot
+          : state.draftSpot;
+        const friendRoom = state.rooms.find(r => r.id === selectedFriend.roomId) || room;
+        const directions = ColorEngine.getWalkingDirections(origin, selectedFriend, friendRoom);
+
+        if (els.wayfinderHeadline) els.wayfinderHeadline.textContent = directions.headline;
+        if (els.wayfinderTarget) els.wayfinderTarget.textContent = `→ ${selectedFriend.name} (${directions.toColor.zoneCode})`;
+        if (els.wayfinderGradientBar) {
+          els.wayfinderGradientBar.style.background = `linear-gradient(90deg, ${directions.fromColor.hex} 0%, ${directions.toColor.hex} 100%)`;
+        }
+        if (els.wayfinderShiftText) {
+          els.wayfinderShiftText.textContent = `Shift ${directions.fromColor.colorName} → ${directions.toColor.colorName}`;
+        }
+        if (els.wayfinderLandmarkText) {
+          els.wayfinderLandmarkText.textContent = selectedFriend.note || directions.nearest.phrase || '';
+        }
+      } else if (els.wayfinderBanner) {
+        els.wayfinderBanner.classList.add('hidden');
       }
     }
 
@@ -802,12 +1100,35 @@
       els.chatMessagePreview.textContent = payload.fullMessage;
     }
     if (els.chatPreviewCount) {
-      els.chatPreviewCount.textContent = `CREW: ${payload.stateObj.pins.length} PINS`;
+      els.chatPreviewCount.textContent = `${payload.stateObj.pins.length} PINS`;
     }
+
+    // 8. Editor Inspector Bar sync
+    updateSelectedFixtureBar();
 
     // Re-render canvas and sync HTML overlay
     renderCanvas();
     syncOverlay();
+  }
+
+  /**
+   * Clipboard helper
+   */
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      return true;
+    }
   }
 
   /**
@@ -827,18 +1148,55 @@
       });
     }
 
-    // Demo crew toggle
-    if (els.btnDemoCrew) {
-      els.btnDemoCrew.addEventListener('click', () => {
-        state.demoCrewActive = !state.demoCrewActive;
-        if (state.demoCrewActive) {
-          state.pins = createDemoCrew();
-          showToast('Demo crew loaded on floor');
-        } else {
-          state.pins = [];
-          showToast('Demo crew cleared');
-        }
-        updateAll();
+    // Venue Editor Toggles
+    if (els.btnEditLayout) {
+      els.btnEditLayout.addEventListener('click', () => {
+        setLayoutEditMode(!state.layoutEditMode);
+      });
+    }
+
+    if (els.btnRoomSettings) {
+      els.btnRoomSettings.addEventListener('click', () => {
+        setLayoutEditMode(!state.layoutEditMode);
+      });
+    }
+
+    if (els.btnMapEditLayout) {
+      els.btnMapEditLayout.addEventListener('click', () => {
+        setLayoutEditMode(!state.layoutEditMode);
+      });
+    }
+
+    if (els.btnEditorDone) {
+      els.btnEditorDone.addEventListener('click', () => {
+        setLayoutEditMode(false);
+      });
+    }
+
+    // Share Venue Layout Button
+    if (els.btnShareVenue) {
+      els.btnShareVenue.addEventListener('click', async () => {
+        const room = getActiveRoom();
+        const stateObj = {
+          eventName: state.eventName,
+          activeRoomId: state.activeRoomId,
+          focusPinId: '',
+          pins: state.pins,
+          rooms: state.rooms
+        };
+        const shareUrl = UrlState.buildShareUrl(stateObj);
+        const venueMsg = UrlState.buildVenueShareMessage({
+          eventName: state.eventName,
+          rooms: state.rooms,
+          activeRoom: room,
+          shareUrl
+        });
+
+        const hash = UrlState.encodeState(stateObj);
+        window.history.replaceState(null, '', hash);
+
+        await copyToClipboard(venueMsg);
+        showToast('Copied custom venue layout link!');
       });
     }
 
@@ -849,12 +1207,171 @@
         const nextTheme = isLight ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', nextTheme);
         els.btnThemeToggle.textContent = nextTheme === 'light' ? '🌙' : '☀️';
-        try { localStorage.setItem('chromafloor_theme', nextTheme); } catch (_) {}
+        try { localStorage.setItem(STORAGE_KEY_THEME, nextTheme); } catch (_) {}
         updateAll();
       });
     }
 
-    // 2. Add Room Modal
+    // 2. Room Configuration Live Inputs
+    if (els.editorRoomName) {
+      els.editorRoomName.addEventListener('input', () => {
+        const room = getActiveRoom();
+        const val = els.editorRoomName.value.trim();
+        if (val) {
+          room.name = val;
+          saveRooms();
+          // Avoid re-rendering editorRoomName while typing:
+          if (els.roomTabs) {
+            updateAll();
+          }
+        }
+      });
+    }
+
+    if (els.editorRoomWidth) {
+      els.editorRoomWidth.addEventListener('input', () => {
+        const room = getActiveRoom();
+        const val = parseInt(els.editorRoomWidth.value, 10);
+        if (val && val >= 10 && val <= 500) {
+          room.widthMeters = val;
+          saveRooms();
+          if (els.roomDimensionsLabel) els.roomDimensionsLabel.textContent = `${room.widthMeters}M × ${room.depthMeters}M`;
+        }
+      });
+    }
+
+    if (els.editorRoomDepth) {
+      els.editorRoomDepth.addEventListener('input', () => {
+        const room = getActiveRoom();
+        const val = parseInt(els.editorRoomDepth.value, 10);
+        if (val && val >= 10 && val <= 500) {
+          room.depthMeters = val;
+          saveRooms();
+          if (els.roomDimensionsLabel) els.roomDimensionsLabel.textContent = `${room.widthMeters}M × ${room.depthMeters}M`;
+        }
+      });
+    }
+
+    // Clear Floor Landmarks Button
+    if (els.btnEditorClearLandmarks) {
+      els.btnEditorClearLandmarks.addEventListener('click', () => {
+        const room = getActiveRoom();
+        room.landmarks = [];
+        state.selectedFixtureId = null;
+        saveRooms();
+        cachedFloorCanvas = null;
+        updateAll();
+        showToast('Cleared floor — tap any fixture above to place');
+      });
+    }
+
+    // Delete Room Button
+    if (els.btnEditorDeleteRoom) {
+      els.btnEditorDeleteRoom.addEventListener('click', () => {
+        if (state.rooms.length <= 1) {
+          showToast('Cannot delete the only room', true);
+          return;
+        }
+        const currentIdx = state.rooms.findIndex(r => r.id === state.activeRoomId);
+        const deletedName = getActiveRoom().name;
+        state.rooms = state.rooms.filter(r => r.id !== state.activeRoomId);
+        const nextRoom = state.rooms[Math.max(0, currentIdx - 1)] || state.rooms[0];
+        state.activeRoomId = nextRoom.id;
+        state.selectedFixtureId = null;
+        saveRooms();
+        cachedFloorCanvas = null;
+        updateEditorUI();
+        updateAll();
+        showToast(`Deleted room "${deletedName}"`);
+      });
+    }
+
+    // Fixture Palette Chips (Arming fixture to place)
+    if (els.fixturePalette) {
+      els.fixturePalette.querySelectorAll('.fixture-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const type = chip.getAttribute('data-fixture-type');
+          if (state.armedFixtureType === type) {
+            state.armedFixtureType = null;
+          } else {
+            state.armedFixtureType = type;
+          }
+          updatePaletteUI();
+        });
+      });
+    }
+
+    // Selected Fixture Inspector Controls
+    if (els.selectedFixtureName) {
+      els.selectedFixtureName.addEventListener('input', () => {
+        const room = getActiveRoom();
+        const lm = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
+        if (lm) {
+          lm.name = els.selectedFixtureName.value.trim() || lm.name;
+          saveRooms();
+          syncOverlay();
+          updateQuickSnaps();
+          updateNotePresets();
+        }
+      });
+    }
+
+    if (els.selectedFixtureType) {
+      els.selectedFixtureType.addEventListener('change', () => {
+        const room = getActiveRoom();
+        const lm = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
+        if (lm) {
+          const prevType = lm.type;
+          const nextType = els.selectedFixtureType.value;
+          const prevDef = ColorEngine.FIXTURE_TYPES[prevType] || {};
+          const nextDef = ColorEngine.FIXTURE_TYPES[nextType] || { defaultName: 'Landmark', icon: '📍' };
+
+          // If name was default name of previous type, update it
+          if (!lm.name || lm.name === prevDef.defaultName) {
+            lm.name = nextDef.defaultName;
+            if (els.selectedFixtureName) els.selectedFixtureName.value = lm.name;
+          }
+
+          lm.type = nextType;
+          lm.icon = nextDef.icon;
+          if (els.selectedFixtureIcon) els.selectedFixtureIcon.textContent = lm.icon;
+
+          saveRooms();
+          cachedFloorCanvas = null;
+          updateAll();
+        }
+      });
+    }
+
+    if (els.btnDeleteFixture) {
+      els.btnDeleteFixture.addEventListener('click', () => {
+        const room = getActiveRoom();
+        const lm = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
+        const lmName = lm ? lm.name : 'Fixture';
+        room.landmarks = (room.landmarks || []).filter(l => l.id !== state.selectedFixtureId);
+        state.selectedFixtureId = null;
+        saveRooms();
+        cachedFloorCanvas = null;
+        updateAll();
+        showToast(`Removed ${lmName}`);
+      });
+    }
+
+    // Clear All Pins Button
+    if (els.btnClearPins) {
+      els.btnClearPins.addEventListener('click', () => {
+        state.pins = [];
+        state.selectedCrewId = '';
+        state.userDropped = false;
+        state.userSpot = null;
+        try { localStorage.removeItem(STORAGE_KEY_SAVED_SPOT); } catch (_) {}
+        savePins();
+        updateAll();
+        showToast('Cleared all floor pins');
+      });
+    }
+
+    // 3. Add Room Modal
     if (els.btnAddRoom && els.addRoomModal) {
       els.btnAddRoom.addEventListener('click', () => {
         els.addRoomModal.classList.remove('hidden');
@@ -867,43 +1384,39 @@
     }
     if (els.btnSaveRoom && els.addRoomModal) {
       els.btnSaveRoom.addEventListener('click', () => {
-        const name = (els.newRoomName?.value || '').trim();
-        const width = parseInt(els.newRoomWidth?.value, 10) || 50;
+        const name = (els.newRoomName?.value || '').trim() || 'Custom Room';
+        const width = parseInt(els.newRoomWidth?.value, 10) || 40;
         const depth = parseInt(els.newRoomDepth?.value, 10) || 50;
+        const templateKey = els.newRoomTemplate?.value || 'blank';
         const shape = els.newRoomShape?.value || 'stage';
 
-        if (!name) {
-          alert('Please enter a room name');
-          return;
-        }
-
-        const id = 'custom-' + Date.now().toString(36);
-        const newRoom = {
-          id,
+        const newRoom = ColorEngine.buildRoomFromTemplate(templateKey, {
           name,
-          shape,
           widthMeters: width,
           depthMeters: depth,
-          landmarks: [
-            { id: `${id}-dj`, name: 'DJ Booth', icon: '🎧', type: 'speaker', x: 0.50, y: 0.12 },
-            { id: `${id}-bar`, name: 'Bar', icon: '🍸', type: 'bar', x: 0.15, y: 0.55 },
-            { id: `${id}-arch`, name: 'Entrance', icon: '🚪', type: 'entrance', x: 0.50, y: 0.92 }
-          ]
-        };
+          shape
+        });
 
-        state.customRooms.push(newRoom);
-        try { localStorage.setItem(STORAGE_KEY_CUSTOM_ROOMS, JSON.stringify(state.customRooms)); } catch (_) {}
-
-        state.activeRoomId = id;
+        state.rooms.push(newRoom);
+        state.activeRoomId = newRoom.id;
+        state.selectedFixtureId = null;
+        saveRooms();
         els.addRoomModal.classList.add('hidden');
         if (els.newRoomName) els.newRoomName.value = '';
         cachedFloorCanvas = null;
-        updateAll();
-        showToast(`Created venue room "${name}"`);
+
+        if (templateKey === 'blank') {
+          setLayoutEditMode(true);
+          showToast(`Created "${name}" — tap any fixture to place!`);
+        } else {
+          showToast(`Created "${name}" with ${templateKey} layout`);
+          updateEditorUI();
+          updateAll();
+        }
       });
     }
 
-    // 3. Stage Viewport Controls
+    // 4. Stage Viewport Controls
     if (els.btnFlipView) {
       els.btnFlipView.addEventListener('click', () => {
         state.flipped = !state.flipped;
@@ -916,7 +1429,7 @@
     if (els.btnToggleGrid) {
       els.btnToggleGrid.addEventListener('click', () => {
         state.showGrid = !state.showGrid;
-        els.btnToggleGrid.classList.toggle('bg-amber-500/20', state.showGrid);
+        els.btnToggleGrid.classList.toggle('active', state.showGrid);
         updateAll();
       });
     }
@@ -927,6 +1440,68 @@
 
     if (viewport) {
       viewport.addEventListener('pointerdown', (e) => {
+        // If clicking on landmark pill or other controls, ignore viewport placement
+        if (e.target.closest('.landmark-pill') || e.target.closest('.crew-pin')) {
+          return;
+        }
+
+        // Placing an armed fixture
+        if (state.layoutEditMode && state.armedFixtureType) {
+          const rect = els.floorCanvas.getBoundingClientRect();
+          let nx = (e.clientX - rect.left) / rect.width;
+          let ny = (e.clientY - rect.top) / rect.height;
+          if (state.flipped) {
+            nx = 1 - nx;
+            ny = 1 - ny;
+          }
+
+          if (els.btnEditorSnapGrid && els.btnEditorSnapGrid.checked) {
+            nx = Math.round(nx / 0.05) * 0.05;
+            ny = Math.round(ny / 0.05) * 0.05;
+          }
+
+          nx = Math.max(0.02, Math.min(0.98, Math.round(nx * 1000) / 1000));
+          ny = Math.max(0.02, Math.min(0.98, Math.round(ny * 1000) / 1000));
+
+          const room = getActiveRoom();
+          const type = state.armedFixtureType;
+          const fixtureDef = ColorEngine.FIXTURE_TYPES[type] || { defaultName: 'Landmark', icon: '📍' };
+          const newLm = {
+            id: 'lm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+            name: fixtureDef.defaultName,
+            type: type,
+            icon: fixtureDef.icon,
+            x: nx,
+            y: ny
+          };
+
+          room.landmarks = room.landmarks || [];
+          room.landmarks.push(newLm);
+          state.selectedFixtureId = newLm.id;
+          state.armedFixtureType = null;
+          saveRooms();
+          cachedFloorCanvas = null;
+          updateEditorUI();
+          updateAll();
+          showToast(`Placed ${newLm.name}`);
+
+          if (type === 'custom') {
+            setTimeout(() => {
+              if (els.selectedFixtureName) {
+                els.selectedFixtureName.focus();
+                els.selectedFixtureName.select();
+              }
+            }, 60);
+          }
+          return;
+        }
+
+        // Deselect fixture if tapping empty floor in layout mode
+        if (state.layoutEditMode) {
+          state.selectedFixtureId = null;
+          updateSelectedFixtureBar();
+        }
+
         const hitCrew = handlePointer(e.clientX, e.clientY, true);
         if (!hitCrew) {
           isDragging = true;
@@ -952,7 +1527,7 @@
       });
     }
 
-    // 4. GPS Assist
+    // 5. GPS Assist
     function requestGps() {
       if (!('geolocation' in navigator)) {
         showToast('GPS geolocation not supported on this device', true);
@@ -975,7 +1550,7 @@
           showToast(`GPS coordinates locked (±${Math.round(pos.coords.accuracy)}m)`);
           updateAll();
         },
-        (err) => {
+        () => {
           state.gpsActive = false;
           state.gpsCoords = null;
           if (els.attachGpsCheckbox) els.attachGpsCheckbox.checked = false;
@@ -1001,10 +1576,10 @@
       });
     }
 
-    // 5. Note Chips & Inputs
+    // 6. User Inputs
     if (els.userNameInput) {
       els.userNameInput.addEventListener('input', () => {
-        state.userName = els.userNameInput.value.trim() || 'You';
+        state.userName = els.userNameInput.value.trim();
         try { localStorage.setItem(STORAGE_KEY_USER_NAME, state.userName); } catch (_) {}
         updateAll();
       });
@@ -1017,19 +1592,6 @@
       });
     }
 
-    if (els.notePresetChips) {
-      els.notePresetChips.querySelectorAll('.chip-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const text = btn.getAttribute('data-note') || btn.textContent.trim();
-          if (els.userNoteInput) {
-            els.userNoteInput.value = text;
-            state.userNote = text;
-            updateAll();
-          }
-        });
-      });
-    }
-
     if (els.includeCrewCheckbox) {
       els.includeCrewCheckbox.addEventListener('change', (e) => {
         state.includeCrewInShare = e.target.checked;
@@ -1037,7 +1599,7 @@
       });
     }
 
-    // 6. Pin Drop & Sharing
+    // 7. Pin Drop & Sharing
     if (els.btnDropShare) {
       els.btnDropShare.addEventListener('click', async () => {
         state.userDropped = true;
@@ -1053,15 +1615,24 @@
 
         const payload = getCurrentSharePayload();
 
+        // Update or add me in state.pins
+        const existingMeIdx = state.pins.findIndex(p => p.id === 'me');
+        if (existingMeIdx >= 0) {
+          state.pins[existingMeIdx] = payload.myPin;
+        } else {
+          state.pins.unshift(payload.myPin);
+        }
+        savePins();
+
         // Update URL hash without reload
         const hash = UrlState.encodeState(payload.stateObj);
         window.history.replaceState(null, '', hash);
 
-        // Share native or clipboard fallback
+        // Native share sheet or clipboard
         if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
           try {
             await navigator.share({
-              title: `${state.userName}'s ChromaFloor Spot`,
+              title: `${state.userName || 'My'} ChromaFloor Spot`,
               text: payload.fullMessage
             });
             showToast('✓ Shared via system dialog!');
@@ -1092,23 +1663,6 @@
     }
 
     // Direct Group Chat Share Buttons
-    async function copyToClipboard(text) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch (_) {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        return true;
-      }
-    }
-
     if (els.btnShareNative) {
       els.btnShareNative.addEventListener('click', async () => {
         const payload = getCurrentSharePayload();
@@ -1156,46 +1710,6 @@
       });
     }
 
-    // 7. Walk Simulator
-    if (els.btnWalkSim) {
-      els.btnWalkSim.addEventListener('click', () => {
-        if (state.walkingSimActive) {
-          clearInterval(state.walkingSimTimer);
-          state.walkingSimActive = false;
-          els.btnWalkSim.textContent = 'Walk Sim';
-          showToast('Walk simulation stopped');
-          return;
-        }
-
-        const target = state.pins.find(p => p.id === state.selectedCrewId && p.roomId === state.activeRoomId)
-          || { x: 0.38, y: 0.28 };
-
-        state.walkingSimActive = true;
-        els.btnWalkSim.textContent = 'Stop Sim';
-        showToast('Simulating walk from Main Arch entrance...');
-
-        const startX = 0.50;
-        const startY = 0.92;
-        let progress = 0;
-
-        state.walkingSimTimer = setInterval(() => {
-          progress += 0.035;
-          if (progress >= 1) {
-            clearInterval(state.walkingSimTimer);
-            state.walkingSimActive = false;
-            els.btnWalkSim.textContent = 'Walk Sim';
-            progress = 1;
-            showToast(`Arrived at ${target.name || 'Friend'}!`);
-          }
-          state.draftSpot = {
-            x: startX + progress * (target.x - startX),
-            y: startY + progress * (target.y - startY)
-          };
-          updateAll();
-        }, 75);
-      });
-    }
-
     // 8. Color Beacon Modal
     if (els.btnFlashBeacon && els.beaconModal) {
       els.btnFlashBeacon.addEventListener('click', () => {
@@ -1213,7 +1727,7 @@
         if (els.beaconColorTitle) els.beaconColorTitle.textContent = dColor.colorName;
         if (els.beaconHexCode) els.beaconHexCode.textContent = dColor.hex;
         if (els.beaconUserMeta) {
-          const safeName = (els.userNameInput ? els.userNameInput.value.trim() : state.userName) || 'You';
+          const safeName = (els.userNameInput ? els.userNameInput.value.trim() : state.userName) || 'Me';
           els.beaconUserMeta.textContent = `${safeName} · ${nearest.phrase || dColor.fullPositionLabel}`;
         }
 
@@ -1241,7 +1755,7 @@
       });
     }
 
-    // Escape key closes beacon or modal
+    // Escape key closes beacon or modals
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (state.beaconOpen && els.beaconModal) {
@@ -1294,9 +1808,15 @@
     if (parsed.eventName) state.eventName = parsed.eventName;
     if (parsed.activeRoomId) state.activeRoomId = parsed.activeRoomId;
 
+    if (Array.isArray(parsed.rooms) && parsed.rooms.length > 0) {
+      state.rooms = parsed.rooms;
+      saveRooms();
+      showToast(`🗺️ Loaded custom venue floorplan (${parsed.rooms.map(r => r.name).join(', ')})!`);
+    }
+
     if (Array.isArray(parsed.pins) && parsed.pins.length > 0) {
-      // Incoming friends
       state.pins = parsed.pins;
+      savePins();
 
       // If a focus pin was specified, select it
       if (parsed.focusPinId) {
@@ -1312,6 +1832,7 @@
     }
 
     cachedFloorCanvas = null;
+    updateEditorUI();
     updateAll();
   }
 
@@ -1357,7 +1878,7 @@
 
     // Restore saved theme
     try {
-      const savedTheme = localStorage.getItem('chromafloor_theme');
+      const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
       if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
         if (els.btnThemeToggle) els.btnThemeToggle.textContent = savedTheme === 'light' ? '🌙' : '☀️';
@@ -1365,11 +1886,12 @@
     } catch (_) {}
 
     // Initial render
+    updateEditorUI();
     updateAll();
     startAnimationLoop();
     registerServiceWorker();
 
-    console.log('[ChromaFloor] App Controller initialized successfully.');
+    console.log('[ChromaFloor] App Controller initialized successfully with zero demo clutter.');
   }
 
   if (document.readyState === 'loading') {

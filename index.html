@@ -49,14 +49,20 @@
 
         <button id="event-badge-btn" type="button" class="event-badge-btn" title="Click to rename festival or event">
           <span class="status-dot-amber"></span>
-          <span id="event-name-label">Festival</span>
+          <span id="event-name-label">My Event</span>
+          <span class="event-edit-icon" aria-hidden="true">✎</span>
         </button>
       </div>
 
       <div class="header-right">
-        <button id="btn-demo-crew" type="button" class="btn-header-tool" title="Toggle sample crew on floor">
-          <span class="tool-icon">👥</span>
-          <span>Demo Crew</span>
+        <button id="btn-edit-layout" type="button" class="btn-header-tool" title="Customize rooms and place Stage, Bar, Entrance, etc.">
+          <span class="tool-icon">🛠️</span>
+          <span id="edit-layout-btn-text">Edit Venue</span>
+        </button>
+
+        <button id="btn-share-venue" type="button" class="btn-header-tool" title="Copy shareable link with your custom room layout">
+          <span class="tool-icon">🔗</span>
+          <span>Share Layout</span>
         </button>
 
         <button id="btn-theme-toggle" type="button" class="btn-theme-toggle" title="Toggle daylight contrast theme" aria-label="Toggle theme">
@@ -68,7 +74,10 @@
     <!-- Room Selector Strip -->
     <div class="room-strip-container">
       <div id="room-tabs" class="room-tabs" role="tablist" aria-label="Festival Stages"></div>
-      <button id="btn-add-room" type="button" class="btn-add-room" title="Add a custom stage or venue room">+ Room</button>
+      <div class="room-strip-actions">
+        <button id="btn-room-settings" type="button" class="btn-room-settings" title="Edit active room & place fixtures">✏️ Customize Room</button>
+        <button id="btn-add-room" type="button" class="btn-add-room" title="Add a custom stage or venue room">+ Add Room</button>
+      </div>
     </div>
 
     <!-- Main 2-Column Grid Layout -->
@@ -84,6 +93,10 @@
           </div>
 
           <div class="map-actions-group">
+            <button id="btn-map-edit-layout" type="button" class="map-action-btn" title="Place &amp; drag Stage, Bar, Toilets, Entrance, etc.">
+              <span>✏️</span>
+              <span id="map-edit-btn-label">Edit Floor</span>
+            </button>
             <button id="btn-flip-view" type="button" class="map-action-btn" title="Flip view 180° perspective">
               <span>🔄</span>
               <span>Flip View</span>
@@ -95,6 +108,68 @@
               <span>📍</span>
               <span>GPS Assist</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Inline Venue Layout Editor Panel -->
+        <div id="layout-editor-panel" class="layout-editor-panel hidden" aria-label="Venue and Room Layout Editor">
+          <!-- 1. Room Config Row -->
+          <div class="editor-room-row">
+            <input id="editor-room-name" type="text" class="field-input editor-inline-input" maxlength="32" placeholder="Room name" aria-label="Room Name" />
+            <div class="editor-dim-group">
+              <input id="editor-room-width" type="number" class="field-input editor-dim-input" min="10" max="500" value="40" aria-label="Width in meters" />
+              <span class="editor-dim-sep">m ×</span>
+              <input id="editor-room-depth" type="number" class="field-input editor-dim-input" min="10" max="500" value="50" aria-label="Depth in meters" />
+              <span class="editor-dim-sep">m</span>
+            </div>
+            <label class="checkbox-row editor-snap-toggle">
+              <input id="btn-editor-snap-grid" type="checkbox" class="styled-checkbox" />
+              <span>Snap</span>
+            </label>
+            <button id="btn-editor-clear-landmarks" type="button" class="chip-btn" title="Remove all fixtures from this room">Clear Floor</button>
+            <button id="btn-editor-delete-room" type="button" class="chip-btn chip-danger" title="Delete this room">Delete Room</button>
+            <button id="btn-editor-done" type="button" class="btn-editor-done">✓ Done</button>
+          </div>
+
+          <!-- 2. Placeable Fixture Palette Row -->
+          <div class="editor-palette-section">
+            <div id="editor-mode-hint" class="editor-mode-hint">Tap a fixture below then tap the floor to place it — or drag any placed item directly on the map:</div>
+            <div id="fixture-palette" class="fixture-palette">
+              <button type="button" class="fixture-chip" data-fixture-type="stage">🎸 Stage</button>
+              <button type="button" class="fixture-chip" data-fixture-type="dj">🎧 DJ Booth</button>
+              <button type="button" class="fixture-chip" data-fixture-type="bar">🍸 Bar</button>
+              <button type="button" class="fixture-chip" data-fixture-type="booth">🎛️ Sound Desk</button>
+              <button type="button" class="fixture-chip" data-fixture-type="speaker">🔊 Speaker</button>
+              <button type="button" class="fixture-chip" data-fixture-type="entrance">🚪 Entrance</button>
+              <button type="button" class="fixture-chip" data-fixture-type="wc">🚻 Toilets</button>
+              <button type="button" class="fixture-chip" data-fixture-type="water">💧 Water</button>
+              <button type="button" class="fixture-chip" data-fixture-type="cloak">🧥 Cloakroom</button>
+              <button type="button" class="fixture-chip" data-fixture-type="chill">🌿 Chill / VIP</button>
+              <button type="button" class="fixture-chip" data-fixture-type="pillar">🏛️ Pillar</button>
+              <button type="button" class="fixture-chip" data-fixture-type="custom">🏷️ Custom...</button>
+            </div>
+          </div>
+
+          <!-- 3. Selected Fixture Inspector Row -->
+          <div id="selected-fixture-bar" class="selected-fixture-bar hidden">
+            <span id="selected-fixture-icon" class="selected-fixture-icon">🎸</span>
+            <input id="selected-fixture-name" type="text" class="field-input editor-inline-input" maxlength="28" placeholder="Fixture label (e.g. Main Bar)" aria-label="Fixture Label" />
+            <select id="selected-fixture-type" class="field-select editor-type-select" aria-label="Fixture Type">
+              <option value="stage">Stage</option>
+              <option value="dj">DJ Booth</option>
+              <option value="bar">Bar</option>
+              <option value="booth">Sound Desk</option>
+              <option value="speaker">Speaker</option>
+              <option value="entrance">Entrance</option>
+              <option value="wc">Toilets</option>
+              <option value="water">Water</option>
+              <option value="cloak">Cloakroom</option>
+              <option value="chill">Chill / VIP</option>
+              <option value="pillar">Pillar</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <span id="selected-fixture-pos" class="selected-fixture-pos">E1</span>
+            <button id="btn-delete-fixture" type="button" class="chip-btn chip-danger">✕ Remove</button>
           </div>
         </div>
 
@@ -142,7 +217,7 @@
         <div class="panel-card form-card">
           <div class="form-group">
             <label for="user-name-input" class="field-label">YOUR NAME</label>
-            <input id="user-name-input" type="text" class="field-input" value="You" maxlength="28" autocomplete="nickname" placeholder="Your name or callsign" />
+            <input id="user-name-input" type="text" class="field-input" value="" maxlength="28" autocomplete="nickname" placeholder="Your name or nickname" />
           </div>
 
           <div class="form-group">
@@ -216,7 +291,7 @@
           <div class="chat-preview-box">
             <div class="chat-preview-header">
               <span class="preview-tag">CHAT MESSAGE PREVIEW</span>
-              <span id="chat-preview-count" class="preview-crew-count">CREW: 4 PINS</span>
+              <span id="chat-preview-count" class="preview-crew-count">0 PINS</span>
             </div>
             <div id="chat-message-preview" class="chat-message-preview"></div>
           </div>
@@ -227,26 +302,29 @@
           <div class="crew-card-header">
             <div class="crew-header-left">
               <span class="crew-header-title">CREW RADAR &amp; WALKING GUIDE</span>
-              <span id="crew-active-count" class="crew-count-pill">4 ON FLOOR</span>
+              <span id="crew-active-count" class="crew-count-pill">0 ON FLOOR</span>
             </div>
-            <button id="btn-walk-sim" type="button" class="chip-btn walk-sim-btn">Walk Sim</button>
+            <button id="btn-clear-pins" type="button" class="chip-btn hidden" title="Clear all pins on floor">Clear Pins</button>
           </div>
+
+          <!-- Empty State -->
+          <div id="crew-empty-state" class="crew-empty-state">No crew pins on the floor yet. Drop your spot above or open a friend's group-chat link to get live walking sightlines.</div>
 
           <!-- Dynamic Crew Members List -->
           <div id="crew-list" class="crew-list"></div>
 
           <!-- Walking Guidance Banner -->
-          <div id="wayfinder-banner" class="wayfinder-banner">
+          <div id="wayfinder-banner" class="wayfinder-banner hidden">
             <div class="wayfinder-top-line">
-              <div id="wayfinder-headline" class="wayfinder-headline">29m Forward-Left toward Stage</div>
-              <div id="wayfinder-target" class="wayfinder-target">→ Maya (D3)</div>
+              <div id="wayfinder-headline" class="wayfinder-headline">Select a crew member to start walking sightline</div>
+              <div id="wayfinder-target" class="wayfinder-target">→ Target</div>
             </div>
             <div class="wayfinder-bar-track">
               <div id="wayfinder-gradient-bar" class="wayfinder-gradient-bar"></div>
             </div>
             <div class="wayfinder-bottom-line">
-              <span id="wayfinder-shift-text" class="wayfinder-shift-text">Shift Vivid Mint → Bright Lime</span>
-              <span id="wayfinder-landmark-text" class="wayfinder-landmark-text">Near Left Stack</span>
+              <span id="wayfinder-shift-text" class="wayfinder-shift-text">Follow color gradient on floor</span>
+              <span id="wayfinder-landmark-text" class="wayfinder-landmark-text">Sightline active</span>
             </div>
           </div>
         </div>
@@ -309,12 +387,22 @@
         <div class="modal-grid-2">
           <div class="form-group">
             <label for="new-room-width" class="field-label">WIDTH (METERS)</label>
-            <input id="new-room-width" type="number" class="field-input" value="50" min="15" max="250" />
+            <input id="new-room-width" type="number" class="field-input" value="40" min="10" max="500" />
           </div>
           <div class="form-group">
             <label for="new-room-depth" class="field-label">DEPTH (METERS)</label>
-            <input id="new-room-depth" type="number" class="field-input" value="60" min="15" max="250" />
+            <input id="new-room-depth" type="number" class="field-input" value="50" min="10" max="500" />
           </div>
+        </div>
+
+        <div class="form-group">
+          <label for="new-room-template" class="field-label">FIXTURE TEMPLATE</label>
+          <select id="new-room-template" class="field-select">
+            <option value="blank">Blank Floor (Place Stage, Bar &amp; Entrance yourself)</option>
+            <option value="club">Club / Gig Venue (Stage, Bar, Toilets, Entrance)</option>
+            <option value="festival">Festival Stage (Stage, L/R Stacks, Sound Desk, Bar, Water, Entrance)</option>
+            <option value="boiler">360° Center Booth (Center DJ Booth, 2 Bars, Chill, Entrance)</option>
+          </select>
         </div>
 
         <div class="form-group">

@@ -44,67 +44,121 @@
   // 8 Columns (Left to Right): A -> H
   const ZONE_COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-  // Default Festival Rooms & Venues
+  // Clean Default Customizable Room
   const DEFAULT_ROOMS = [
     {
       id: 'main',
-      name: 'Main Stage',
+      name: 'Main Room',
       shape: 'stage',
-      widthMeters: 70,
-      depthMeters: 80,
+      widthMeters: 40,
+      depthMeters: 50,
       landmarks: [
-        { id: 'l-stack', name: 'Left Stack', icon: '🔊', type: 'speaker', x: 0.14, y: 0.14 },
-        { id: 'r-stack', name: 'Right Stack', icon: '🔊', type: 'speaker', x: 0.80, y: 0.14 },
-        { id: 'foh', name: 'Sound Desk', icon: '🎛️', type: 'booth', x: 0.49, y: 0.48 },
-        { id: 'l-bar', name: 'Left Bar', icon: '🍸', type: 'bar', x: 0.08, y: 0.56 },
-        { id: 'water', name: 'Water Refill', icon: '💧', type: 'water', x: 0.91, y: 0.52 },
-        { id: 'arch', name: 'Main Arch', icon: '🚪', type: 'entrance', x: 0.50, y: 0.92 }
-      ]
-    },
-    {
-      id: 'warehouse',
-      name: 'Warehouse Tent',
-      shape: 'warehouse',
-      widthMeters: 45,
-      depthMeters: 65,
-      landmarks: [
-        { id: 'dj', name: 'DJ Booth', icon: '🎧', type: 'speaker', x: 0.50, y: 0.10 },
-        { id: 'pil-l', name: 'Left Pillar', icon: '🏛️', type: 'pillar', x: 0.25, y: 0.38 },
-        { id: 'pil-r', name: 'Right Pillar', icon: '🏛️', type: 'pillar', x: 0.75, y: 0.38 },
-        { id: 'foh-w', name: 'Light Desk', icon: '💡', type: 'booth', x: 0.50, y: 0.58 },
-        { id: 's-bar', name: 'Side Bar', icon: '🍺', type: 'bar', x: 0.88, y: 0.62 },
-        { id: 'w-exit', name: 'Exit Arch', icon: '🚪', type: 'entrance', x: 0.50, y: 0.92 }
-      ]
-    },
-    {
-      id: 'forest',
-      name: 'Forest Clearing',
-      shape: 'grove',
-      widthMeters: 50,
-      depthMeters: 55,
-      landmarks: [
-        { id: 'tree-booth', name: 'Tree Booth', icon: '🌲', type: 'speaker', x: 0.50, y: 0.12 },
-        { id: 'hammocks', name: 'Hammocks', icon: '⛺', type: 'chill', x: 0.18, y: 0.45 },
-        { id: 'drinks-cart', name: 'Drinks Cart', icon: '🍹', type: 'bar', x: 0.85, y: 0.50 },
-        { id: 'fire-pit', name: 'Fire Pit', icon: '🔥', type: 'chill', x: 0.30, y: 0.82 },
-        { id: 'trail-gate', name: 'Trail Gate', icon: '⛩️', type: 'entrance', x: 0.50, y: 0.92 }
-      ]
-    },
-    {
-      id: 'dome',
-      name: 'Bass Dome',
-      shape: 'dome',
-      widthMeters: 42,
-      depthMeters: 42,
-      landmarks: [
-        { id: 'rig-360', name: '360° Rig', icon: '🌀', type: 'speaker', x: 0.50, y: 0.22 },
-        { id: 'sub-l', name: 'Left Subs', icon: '🔊', type: 'speaker', x: 0.20, y: 0.40 },
-        { id: 'sub-r', name: 'Right Subs', icon: '🔊', type: 'speaker', x: 0.80, y: 0.40 },
-        { id: 'cushions', name: 'Chill Cushions', icon: '🛋️', type: 'chill', x: 0.78, y: 0.74 },
-        { id: 'dome-tunnel', name: 'Dome Tunnel', icon: '🚪', type: 'entrance', x: 0.50, y: 0.92 }
+        { id: 'lm-stage', name: 'Stage', type: 'stage', icon: '🎸', x: 0.50, y: 0.08 },
+        { id: 'lm-foh', name: 'Sound Desk', type: 'booth', icon: '🎛️', x: 0.50, y: 0.48 },
+        { id: 'lm-bar', name: 'Bar', type: 'bar', icon: '🍸', x: 0.12, y: 0.54 },
+        { id: 'lm-wc', name: 'Toilets', type: 'wc', icon: '🚻', x: 0.88, y: 0.54 },
+        { id: 'lm-entry', name: 'Entrance', type: 'entrance', icon: '🚪', x: 0.50, y: 0.92 }
       ]
     }
   ];
+
+  // Fixture Catalog for Drag & Drop and Palette
+  const FIXTURE_TYPES = {
+    stage: { label: 'Stage', defaultName: 'Stage', icon: '🎸' },
+    dj: { label: 'DJ Booth', defaultName: 'DJ Booth', icon: '🎧' },
+    bar: { label: 'Bar', defaultName: 'Bar', icon: '🍸' },
+    booth: { label: 'Sound Desk', defaultName: 'Sound Desk', icon: '🎛️' },
+    speaker: { label: 'Speaker', defaultName: 'Speaker Stack', icon: '🔊' },
+    entrance: { label: 'Entrance', defaultName: 'Entrance', icon: '🚪' },
+    wc: { label: 'Toilets', defaultName: 'Toilets', icon: '🚻' },
+    water: { label: 'Water', defaultName: 'Water Point', icon: '💧' },
+    cloak: { label: 'Cloakroom', defaultName: 'Cloakroom', icon: '🧥' },
+    chill: { label: 'Chill / VIP', defaultName: 'Chill Area', icon: '🌿' },
+    pillar: { label: 'Pillar', defaultName: 'Pillar', icon: '🏛️' },
+    custom: { label: 'Custom', defaultName: 'Landmark', icon: '🏷️' }
+  };
+
+  /**
+   * Builds a room preset from a template key
+   */
+  function buildRoomFromTemplate(templateKey, opts) {
+    const opt = opts || {};
+    const id = opt.id || ('room-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6));
+    const name = opt.name || 'New Room';
+    const widthMeters = Number(opt.widthMeters) || 40;
+    const depthMeters = Number(opt.depthMeters) || 50;
+    const shape = opt.shape || 'stage';
+
+    let landmarks = [];
+    switch (templateKey) {
+      case 'blank':
+        landmarks = [];
+        break;
+      case 'club':
+        landmarks = [
+          { id: 'lm-stage', name: 'Stage', type: 'stage', icon: FIXTURE_TYPES.stage.icon, x: 0.50, y: 0.08 },
+          { id: 'lm-dj', name: 'DJ Booth', type: 'dj', icon: FIXTURE_TYPES.dj.icon, x: 0.50, y: 0.16 },
+          { id: 'lm-bar', name: 'Bar', type: 'bar', icon: FIXTURE_TYPES.bar.icon, x: 0.12, y: 0.52 },
+          { id: 'lm-wc', name: 'Toilets', type: 'wc', icon: FIXTURE_TYPES.wc.icon, x: 0.88, y: 0.56 },
+          { id: 'lm-entry', name: 'Entrance', type: 'entrance', icon: FIXTURE_TYPES.entrance.icon, x: 0.50, y: 0.92 }
+        ];
+        break;
+      case 'festival':
+        landmarks = [
+          { id: 'lm-mainstage', name: 'Main Stage', type: 'stage', icon: FIXTURE_TYPES.stage.icon, x: 0.50, y: 0.07 },
+          { id: 'lm-lstack', name: 'Left Stack', type: 'speaker', icon: FIXTURE_TYPES.speaker.icon, x: 0.18, y: 0.14 },
+          { id: 'lm-rstack', name: 'Right Stack', type: 'speaker', icon: FIXTURE_TYPES.speaker.icon, x: 0.82, y: 0.14 },
+          { id: 'lm-foh', name: 'Sound Desk', type: 'booth', icon: FIXTURE_TYPES.booth.icon, x: 0.50, y: 0.48 },
+          { id: 'lm-bar', name: 'Bar', type: 'bar', icon: FIXTURE_TYPES.bar.icon, x: 0.10, y: 0.56 },
+          { id: 'lm-water', name: 'Water Point', type: 'water', icon: FIXTURE_TYPES.water.icon, x: 0.90, y: 0.52 },
+          { id: 'lm-entry', name: 'Entrance', type: 'entrance', icon: FIXTURE_TYPES.entrance.icon, x: 0.50, y: 0.92 }
+        ];
+        break;
+      case 'boiler':
+        landmarks = [
+          { id: 'lm-dj360', name: '360° DJ Booth', type: 'dj', icon: FIXTURE_TYPES.dj.icon, x: 0.50, y: 0.50 },
+          { id: 'lm-nbar', name: 'North Bar', type: 'bar', icon: FIXTURE_TYPES.bar.icon, x: 0.50, y: 0.12 },
+          { id: 'lm-sbar', name: 'Side Bar', type: 'bar', icon: FIXTURE_TYPES.bar.icon, x: 0.12, y: 0.50 },
+          { id: 'lm-chill', name: 'Chill Area', type: 'chill', icon: FIXTURE_TYPES.chill.icon, x: 0.86, y: 0.50 },
+          { id: 'lm-entry', name: 'Entrance', type: 'entrance', icon: FIXTURE_TYPES.entrance.icon, x: 0.50, y: 0.92 }
+        ];
+        break;
+      default:
+        landmarks = [];
+        break;
+    }
+
+    return {
+      id,
+      name,
+      widthMeters,
+      depthMeters,
+      shape,
+      landmarks
+    };
+  }
+
+  /**
+   * Finds the primary stage/DJ landmark in room or returns default stage origin
+   */
+  function getStageOrigin(room) {
+    const landmarks = (room && Array.isArray(room.landmarks)) ? room.landmarks : [];
+    const stageLm = landmarks.find(lm => lm.type === 'stage') || landmarks.find(lm => lm.type === 'dj');
+    if (stageLm) {
+      return {
+        x: stageLm.x,
+        y: stageLm.y,
+        hasStage: true,
+        name: stageLm.name
+      };
+    }
+    return {
+      x: 0.5,
+      y: 0,
+      hasStage: false,
+      name: null
+    };
+  }
 
   /**
    * Interpolate hue degrees [0..360] across floor width x [0..1]
@@ -304,8 +358,8 @@
     const actualFrom = fromSpot || { x: 0.50, y: 0.92 };
     const actualTo = toSpot || { x: 0.50, y: 0.50 };
 
-    const widthM = (room && room.widthMeters) || 70;
-    const depthM = (room && room.depthMeters) || 80;
+    const widthM = (room && room.widthMeters) || 40;
+    const depthM = (room && room.depthMeters) || 50;
 
     const dxMeters = (actualTo.x - actualFrom.x) * widthM;
     const dyMeters = (actualTo.y - actualFrom.y) * depthM;
@@ -320,10 +374,25 @@
     else if (fb) move = `Straight ${fb}`;
     else if (lr) move = `${lr} across floor`;
 
-    const toward = dyMeters < 0 ? 'toward Stage' : 'toward Back';
+    const stageOrigin = getStageOrigin(room);
+    let toward = '';
+    if (stageOrigin.hasStage) {
+      const distFromStage = Math.hypot((actualFrom.x - stageOrigin.x) * widthM, (actualFrom.y - stageOrigin.y) * depthM);
+      const distToStage = Math.hypot((actualTo.x - stageOrigin.x) * widthM, (actualTo.y - stageOrigin.y) * depthM);
+      if (distToStage < distFromStage - 2) {
+        toward = `toward ${stageOrigin.name}`;
+      } else if (distToStage > distFromStage + 2) {
+        toward = `away from ${stageOrigin.name}`;
+      }
+    }
+    if (!toward) {
+      toward = dyMeters < 0 ? 'toward Front' : (dyMeters > 0 ? 'toward Back' : '');
+    }
+
+    const towardStr = toward ? ` ${toward}` : '';
     const headline = meters <= 2
       ? 'You are right next to them!'
-      : `${meters}m ${move} ${toward}`;
+      : `${meters}m ${move}${towardStr}`;
 
     const directionLabel = meters <= 2
       ? 'At your spot'
@@ -403,6 +472,9 @@
     HUE_WORDS,
     ZONE_COLUMNS,
     DEFAULT_ROOMS,
+    FIXTURE_TYPES,
+    buildRoomFromTemplate,
+    getStageOrigin,
     interpolateHue,
     getSaturationAndLightness,
     hslToRgb,

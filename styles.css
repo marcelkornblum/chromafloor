@@ -232,6 +232,17 @@ body {
   color: var(--text-primary);
 }
 
+.event-edit-icon {
+  font-size: 0.6875rem;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+.event-badge-btn:hover .event-edit-icon {
+  opacity: 1;
+  color: var(--accent-amber);
+}
+
 .status-dot-amber {
   width: 6px;
   height: 6px;
@@ -374,6 +385,42 @@ body {
   color: var(--text-muted);
 }
 
+.room-strip-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  shrink: 0;
+}
+
+.btn-room-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-room-settings:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--accent-amber);
+}
+
+.btn-room-settings.active {
+  background: var(--accent-amber-subtle);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
 .btn-add-room {
   display: inline-flex;
   align-items: center;
@@ -500,7 +547,183 @@ body {
   color: var(--accent-amber);
 }
 
-/* Map Viewport & Overlay Canvas */
+/* --------------------------------------------------------------------------
+   7b. INLINE VENUE & ROOM LAYOUT EDITOR PANEL
+   -------------------------------------------------------------------------- */
+.layout-editor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-surface-elevated);
+  border-bottom: 1px solid var(--border-hairline);
+  animation: slide-down 0.18s ease;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.editor-room-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.editor-inline-input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  background: var(--bg-surface);
+}
+
+.editor-dim-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-dim-input {
+  width: 58px;
+  padding: 6px 6px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--bg-surface);
+}
+
+.editor-dim-sep {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.editor-snap-toggle {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.btn-editor-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-amber);
+  color: #000000;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  margin-left: auto;
+  box-shadow: 0 2px 8px var(--accent-amber-glow);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.btn-editor-done:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+/* Fixture Palette */
+.editor-palette-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-mode-hint {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.fixture-palette {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0 4px 0;
+}
+
+.fixture-palette::-webkit-scrollbar {
+  display: none;
+}
+
+.fixture-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fixture-chip:hover {
+  background: var(--bg-surface-sunken);
+  color: var(--text-primary);
+  border-color: var(--accent-amber);
+}
+
+.fixture-chip.armed {
+  background: var(--accent-amber-subtle);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+  box-shadow: 0 0 10px var(--accent-amber-glow);
+}
+
+/* Selected Fixture Inspector */
+.selected-fixture-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-sunken);
+  border: 1px solid var(--accent-amber-glow);
+  flex-wrap: wrap;
+}
+
+.selected-fixture-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.editor-type-select {
+  flex: 0 1 120px;
+  min-width: 100px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  background: var(--bg-surface);
+}
+
+.selected-fixture-pos {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-amber);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-elevated);
+}
+
 .map-viewport {
   position: relative;
   width: 100%;
@@ -511,6 +734,16 @@ body {
   touch-action: none;
   cursor: crosshair;
   user-select: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.map-viewport.layout-editing {
+  outline: 2px dashed var(--accent-amber);
+  outline-offset: -2px;
+}
+
+.map-viewport.placing-fixture {
+  cursor: copy !important;
 }
 
 .map-viewport canvas {
@@ -644,6 +877,48 @@ body {
 
 .landmark-pill:active {
   transform: translate(-50%, -50%) scale(0.96);
+}
+
+/* Prominent Stage / Booth Architectural Anchors */
+.landmark-pill[data-type="stage"],
+.landmark-pill[data-type="dj"] {
+  padding: 5px 12px;
+  background: rgba(13, 15, 18, 0.92);
+  border: 1.5px solid var(--accent-amber);
+  color: #FFFFFF;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 10px var(--accent-amber-glow);
+  z-index: 15;
+}
+
+/* Editable Draggable Fixture States */
+.landmark-pill.editable {
+  cursor: grab;
+  border-style: dashed;
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.landmark-pill.editable:hover {
+  border-color: var(--accent-amber);
+  background: rgba(21, 24, 29, 0.96);
+}
+
+.landmark-pill.dragging {
+  cursor: grabbing !important;
+  transform: translate(-50%, -50%) scale(1.06) !important;
+  z-index: 40 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 14px var(--accent-amber-glow);
+  border-color: var(--accent-amber) !important;
+  border-style: solid !important;
+}
+
+/* Selected Fixture State (Halo Glow) */
+.landmark-pill.selected-fixture {
+  border-color: var(--accent-amber) !important;
+  border-style: solid !important;
+  box-shadow: 0 0 0 3px var(--bg-canvas), 0 0 0 5px var(--accent-amber), 0 4px 16px rgba(0, 0, 0, 0.8) !important;
+  z-index: 35 !important;
 }
 
 /* Crew Pins */
@@ -935,6 +1210,17 @@ body {
 
 .chip-btn:active {
   transform: scale(0.96);
+}
+
+.chip-danger {
+  color: var(--accent-crimson) !important;
+  border-color: var(--accent-crimson-subtle) !important;
+}
+
+.chip-danger:hover {
+  background: var(--accent-crimson-subtle) !important;
+  border-color: var(--accent-crimson) !important;
+  color: #FFFFFF !important;
 }
 
 /* Checkbox Row */
@@ -1236,10 +1522,38 @@ body {
   border-color: var(--border-strong);
 }
 
-.crew-card.selected {
-  background: var(--accent-amber-subtle);
-  border-color: var(--accent-amber);
-  box-shadow: 0 2px 8px var(--accent-amber-glow);
+.crew-empty-state {
+  padding: 14px 10px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-sunken);
+}
+
+.crew-card-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  margin-left: 6px;
+}
+
+.crew-card-remove:hover {
+  background: var(--accent-crimson-subtle);
+  color: var(--accent-crimson);
 }
 
 /* Wayfinder Banner */
@@ -1712,7 +2026,34 @@ body {
   white-space: nowrap;
 }
 
+.hidden {
+  display: none !important;
+}
+
 /* Mobile Responsiveness Refinements */
+@media (max-width: 960px) {
+  .editor-room-row {
+    gap: 6px;
+  }
+
+  .editor-inline-input {
+    flex: 1 1 100%;
+  }
+
+  .btn-editor-done {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .selected-fixture-bar {
+    gap: 6px;
+  }
+
+  .editor-type-select {
+    flex: 1 1 auto;
+  }
+}
+
 @media (max-width: 640px) {
   .app-shell {
     padding: 10px 10px 24px 10px;
@@ -1736,5 +2077,13 @@ body {
 
   .swatch-color-name {
     font-size: 1.35rem;
+  }
+
+  .editor-dim-group {
+    flex-wrap: nowrap;
+  }
+
+  .editor-dim-input {
+    width: 48px;
   }
 }
