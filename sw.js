@@ -4,7 +4,7 @@
  * Uses relative paths so it functions identically under GitHub Pages subpaths.
  */
 
-const CACHE_NAME = 'chromafloor-v3';
+const CACHE_NAME = 'chromafloor-v4';
 
 const ASSETS_TO_CACHE = [
   './',

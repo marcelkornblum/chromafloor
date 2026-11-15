@@ -15,21 +15,49 @@
   // 8 Columns (Left to Right): A -> H
   const ZONE_COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-  // Clean Default Customizable Room
+  const DEFAULT_EVENT_NAME = 'BangFace';
+
+  // BangFace Default Venue Configuration
   const DEFAULT_ROOMS = [
     {
       id: 'main',
-      name: 'Main Room',
-      shape: 'stage',
-      palette: 'wheel',
+      name: 'Bang Room',
       widthMeters: 40,
       depthMeters: 50,
+      shape: 'stage',
+      palette: 'wheel',
       landmarks: [
-        { id: 'lm-stage', name: 'Stage', type: 'stage', icon: '🎸', x: 0.50, y: 0.08 },
-        { id: 'lm-foh', name: 'Sound Desk', type: 'booth', icon: '🎛️', x: 0.50, y: 0.48 },
-        { id: 'lm-bar', name: 'Bar', type: 'bar', icon: '🍸', x: 0.12, y: 0.54 },
-        { id: 'lm-wc', name: 'Toilets', type: 'wc', icon: '🚻', x: 0.88, y: 0.54 },
-        { id: 'lm-entry', name: 'Entrance', type: 'entrance', icon: '🚪', x: 0.50, y: 0.92 }
+        { id: 'lm-mwi0tw2e-8w0v', name: 'Stage', type: 'stage', icon: '🎸', x: 0.529, y: 0.077 },
+        { id: 'lm-mwi0u9ze-ylkc', name: 'Toilets', type: 'wc', icon: '🚻', x: 0.102, y: 0.057 },
+        { id: 'lm-mwi0ujd8-t1ef', name: 'Entrance', type: 'entrance', icon: '🚪', x: 0.156, y: 0.954 },
+        { id: 'lm-mwi0v5g4-5kl9', name: 'Bar', type: 'bar', icon: '🍸', x: 0.483, y: 0.944 },
+        { id: 'lm-mwi0vfg8-c9l9', name: 'Speaker', type: 'speaker', icon: '🔊', x: 0.798, y: 0.119 },
+        { id: 'lm-mwi0vhv8-gq13', name: 'Speaker', type: 'speaker', icon: '🔊', x: 0.278, y: 0.122 }
+      ]
+    },
+    {
+      id: 'room-mwi0xgct-jj5s',
+      name: 'Face Room',
+      widthMeters: 70,
+      depthMeters: 50,
+      shape: 'stage',
+      palette: 'wheel',
+      landmarks: []
+    },
+    {
+      id: 'room-mwi0zas0-exgz',
+      name: 'Hard Crew upstairs',
+      widthMeters: 70,
+      depthMeters: 50,
+      shape: 'stage',
+      palette: 'wheel',
+      landmarks: [
+        { id: 'lm-mwi0zi9v-gigz', name: 'Entrance', type: 'entrance', icon: '🚪', x: 0.854, y: 0.91 },
+        { id: 'lm-mwi0zyor-0hsy', name: 'Bar', type: 'bar', icon: '🍸', x: 0.943, y: 0.543 },
+        { id: 'lm-mwi1091x-rqzg', name: 'Bar', type: 'bar', icon: '🍸', x: 0.057, y: 0.5 },
+        { id: 'lm-mwi10j37-t3bn', name: 'Toilets', type: 'wc', icon: '🚻', x: 0.045, y: 0.805 },
+        { id: 'lm-mwi10oav-y99e', name: 'Stage', type: 'stage', icon: '🎸', x: 0.515, y: 0.043 },
+        { id: 'lm-mwi10zzw-t3gv', name: 'Exit', type: 'custom', icon: '🏷️', x: 0.059, y: 0.936 }
       ]
     }
   ];
@@ -572,6 +600,7 @@
   }
 
   return {
+    DEFAULT_EVENT_NAME,
     ZONE_COLUMNS,
     DEFAULT_ROOMS,
     FIXTURE_TYPES,

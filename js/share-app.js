@@ -15,14 +15,14 @@
   }
 
   // Storage Keys (Shared with setup-app.js)
-  const STORAGE_KEY_EVENT = 'chromafloor_event_v2';
-  const STORAGE_KEY_ROOMS = 'chromafloor_rooms_v2';
+  const STORAGE_KEY_EVENT = 'chromafloor_event_v3';
+  const STORAGE_KEY_ROOMS = 'chromafloor_rooms_v3';
   const STORAGE_KEY_THEME = 'chromafloor_theme_v2';
-  const STORAGE_KEY_SPOT = 'chromafloor_saved_spot_v2';
+  const STORAGE_KEY_SPOT = 'chromafloor_saved_spot_v3';
 
   // Application State
   const state = {
-    eventName: 'My Event',
+    eventName: ColorEngine.DEFAULT_EVENT_NAME || 'BangFace',
     activeRoomId: 'main',
     rooms: JSON.parse(JSON.stringify(ColorEngine.DEFAULT_ROOMS)),
     spot: { x: 0.36, y: 0.34 },

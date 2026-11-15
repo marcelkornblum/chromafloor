@@ -68,7 +68,8 @@
   function encodeState(stateObj) {
     if (!stateObj || typeof stateObj !== 'object') return '';
 
-    const eventName = sanitizeField(stateObj.eventName || 'My Event');
+    const defaultEvent = (ColorEngine && ColorEngine.DEFAULT_EVENT_NAME) || 'BangFace';
+    const eventName = sanitizeField(stateObj.eventName || defaultEvent);
     const activeRoomId = sanitizeField(stateObj.activeRoomId || 'main');
     const focusPinId = sanitizeField(stateObj.focusPinId || '');
 
@@ -142,7 +143,8 @@
       const parts = decoded.split(';');
       if (parts.length < 2) return null;
 
-      const eventName = desanitizeField(parts[0]) || 'My Event';
+      const defaultEvent = (ColorEngine && ColorEngine.DEFAULT_EVENT_NAME) || 'BangFace';
+      const eventName = desanitizeField(parts[0]) || defaultEvent;
       const activeRoomId = desanitizeField(parts[1]) || 'main';
       const focusPinId = desanitizeField(parts[2]) || '';
       const pinsRaw = parts[3] || '';
@@ -303,14 +305,15 @@
    */
   function buildSimpleSpotMessage(opts) {
     const opt = opts || {};
+    const defaultEvent = (ColorEngine && ColorEngine.DEFAULT_EVENT_NAME) || 'BangFace';
     const spotColor = opt.spotColor || { colorName: 'Pearl White', hex: '#FFFFFF', zoneCode: 'E5' };
-    const room = opt.room || { name: 'Main Room' };
-    const eventName = opt.eventName;
+    const room = opt.room || { name: 'Bang Room' };
+    const eventName = opt.eventName !== undefined && opt.eventName !== null ? String(opt.eventName).trim() : defaultEvent;
     const nearestPhrase = opt.nearestPhrase || '';
     const shareUrl = opt.shareUrl || '';
 
     const nearPart = nearestPhrase ? ` · ${nearestPhrase}` : '';
-    const eventPart = (eventName && eventName !== 'My Event') ? ` — ${eventName}` : '';
+    const eventPart = eventName ? ` — ${eventName}` : '';
 
     return `🎨 I'm at ${spotColor.colorName} (${spotColor.hex} · Zone ${spotColor.zoneCode}${nearPart}) in ${room.name}${eventPart}\n📍 See exact spot on the colour wheel: ${shareUrl}`;
   }
@@ -320,9 +323,10 @@
    */
   function buildChatMessages(opts) {
     const opt = opts || {};
+    const defaultEvent = (ColorEngine && ColorEngine.DEFAULT_EVENT_NAME) || 'BangFace';
     const userPin = opt.userPin || { name: 'Me', colorName: 'Pearl White', zoneCode: 'E5', hex: '#FFFFFF' };
-    const room = opt.room || { name: 'Main Room' };
-    const eventName = opt.eventName || 'My Event';
+    const room = opt.room || { name: 'Bang Room' };
+    const eventName = opt.eventName || defaultEvent;
     const crewCount = Number.isFinite(opt.crewCount) ? opt.crewCount : 1;
     const shareUrl = opt.shareUrl || '';
     const nearestPhrase = opt.nearestPhrase || 'Center Floor';
@@ -332,7 +336,7 @@
     const colorName = userPin.colorName || 'Pearl White';
     const zoneCode = userPin.zoneCode || 'E5';
     const hex = userPin.hex || '#FFFFFF';
-    const roomName = room.name || 'Main Room';
+    const roomName = room.name || 'Bang Room';
 
     const notePart = note ? ` · "${note}"` : '';
     const crewPart = crewCount > 1 ? ` 👥 ${crewCount} on floor` : '';
@@ -349,9 +353,10 @@
 
   function buildVenueShareMessage(opts) {
     const opt = opts || {};
-    const eventName = opt.eventName || 'My Event';
+    const defaultEvent = (ColorEngine && ColorEngine.DEFAULT_EVENT_NAME) || 'BangFace';
+    const eventName = opt.eventName || defaultEvent;
     const rooms = Array.isArray(opt.rooms) ? opt.rooms : (opt.activeRoom ? [opt.activeRoom] : []);
-    const roomNames = rooms.map(r => r.name || 'Main Room').join(', ') || 'Main Room';
+    const roomNames = rooms.map(r => r.name || 'Bang Room').join(', ') || 'Bang Room';
     const shareUrl = opt.shareUrl || '';
 
     return `🗺️ ${eventName} floorplan (${roomNames}) — open radar & drop your spot: ${shareUrl}`;

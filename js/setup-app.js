@@ -17,13 +17,13 @@
   }
 
   // Storage Keys (Shared with share-app.js)
-  const STORAGE_KEY_EVENT = 'chromafloor_event_v2';
-  const STORAGE_KEY_ROOMS = 'chromafloor_rooms_v2';
+  const STORAGE_KEY_EVENT = 'chromafloor_event_v3';
+  const STORAGE_KEY_ROOMS = 'chromafloor_rooms_v3';
   const STORAGE_KEY_THEME = 'chromafloor_theme_v2';
 
   // Application State
   const state = {
-    eventName: 'My Event',
+    eventName: ColorEngine.DEFAULT_EVENT_NAME || 'BangFace',
     activeRoomId: 'main',
     rooms: JSON.parse(JSON.stringify(ColorEngine.DEFAULT_ROOMS)),
     flipped: false,
@@ -681,7 +681,7 @@
     // Event name editing
     if (els.setupEventName && els.setupEventName.tagName.toLowerCase() === 'input') {
       els.setupEventName.addEventListener('input', (e) => {
-        state.eventName = e.target.value.trim() || 'My Event';
+        state.eventName = e.target.value.trim() || ColorEngine.DEFAULT_EVENT_NAME || 'BangFace';
         persist();
       });
     }
