@@ -1,0 +1,20 @@
+{
+  "name": "ChromaFloor - Festival 2D Radar",
+  "short_name": "ChromaFloor",
+  "description": "Zero-backend 2D rainbow floor locator and crowd color beacon for festivals and gigs",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0D0F12",
+  "theme_color": "#0D0F12",
+  "categories": ["utilities", "navigation", "entertainment"],
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
