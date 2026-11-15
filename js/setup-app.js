@@ -42,6 +42,15 @@
   const els = {
     setupEventName: getEl('setup-event-name', 'event-name-label'),
     btnCopyGuestLink: getEl('btn-copy-guest-link', 'btn-share-venue'),
+    btnSetupQr: getEl('btn-setup-qr'),
+    qrModal: getEl('qr-modal'),
+    qrModalTitle: getEl('qr-modal-title'),
+    qrSvgWrap: getEl('qr-svg-wrap'),
+    qrSpotSummary: getEl('qr-spot-summary'),
+    qrLiveText: getEl('qr-live-text'),
+    btnCloseQr: getEl('btn-close-qr'),
+    btnQrCopy: getEl('btn-qr-copy'),
+    btnQrDone: getEl('btn-qr-done'),
     linkOpenSharing: getEl('link-open-sharing'),
     btnThemeToggle: getEl('btn-theme-toggle'),
 
@@ -804,6 +813,76 @@
   }
 
   /**
+   * Venue Layout QR Modal Action
+   */
+  function setupVenueQR() {
+    if (!els.btnSetupQr || !els.qrModal) return;
+
+    let activeShareUrl = '';
+
+    function closeQr() {
+      if (els.qrModal) els.qrModal.classList.add('hidden');
+    }
+
+    function openQr() {
+      const activeRoom = getActiveRoom();
+      const roomName = activeRoom ? activeRoom.name : 'All Rooms';
+      activeShareUrl = UrlState.buildShareUrl({
+        eventName: state.eventName,
+        activeRoomId: state.activeRoomId,
+        rooms: state.rooms,
+        pins: []
+      });
+
+      if (els.qrModalTitle) {
+        els.qrModalTitle.textContent = `${state.eventName} · ${roomName}`;
+      }
+      if (els.qrSpotSummary) {
+        els.qrSpotSummary.textContent = `${state.rooms.length} Room${state.rooms.length > 1 ? 's' : ''} · Stage & Bar Layout`;
+      }
+      if (els.qrLiveText) {
+        els.qrLiveText.textContent = 'Guests can open radar on their phone instantly';
+      }
+
+      if (els.qrSvgWrap && window.ChromaQR) {
+        els.qrSvgWrap.innerHTML = window.ChromaQR.toSVG(activeShareUrl, { margin: 4 });
+      }
+
+      els.qrModal.classList.remove('hidden');
+    }
+
+    els.btnSetupQr.addEventListener('click', openQr);
+
+    if (els.btnCloseQr) els.btnCloseQr.addEventListener('click', closeQr);
+    if (els.btnQrDone) els.btnQrDone.addEventListener('click', closeQr);
+
+    els.qrModal.addEventListener('click', (e) => {
+      if (e.target === els.qrModal) closeQr();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && els.qrModal && !els.qrModal.classList.contains('hidden')) {
+        closeQr();
+      }
+    });
+
+    if (els.btnQrCopy) {
+      els.btnQrCopy.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(activeShareUrl);
+            const orig = els.btnQrCopy.textContent;
+            els.btnQrCopy.textContent = '✓ Copied!';
+            setTimeout(() => {
+              if (els.btnQrCopy) els.btnQrCopy.textContent = orig;
+            }, 2000);
+          }
+        } catch (_) {}
+      });
+    }
+  }
+
+  /**
    * Initialization
    */
   function init() {
@@ -821,6 +900,7 @@
     setupRoomConfigInputs();
     setupAddRoomModal();
     setupCopyGuestLink();
+    setupVenueQR();
     setupMapTools();
 
     window.addEventListener('resize', () => {

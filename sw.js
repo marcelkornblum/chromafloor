@@ -4,7 +4,7 @@
  * Uses relative paths so it functions identically under GitHub Pages subpaths.
  */
 
-const CACHE_NAME = 'chromafloor-v6';
+const CACHE_NAME = 'chromafloor-v7';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -16,6 +16,7 @@ const ASSETS_TO_CACHE = [
   './js/color-engine.js',
   './js/url-state.js',
   './js/live-sync.js',
+  './js/qr.js',
   './js/share-app.js',
   './js/setup-app.js'
 ];

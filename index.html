@@ -66,6 +66,10 @@
         <span id="live-status-text">Go Live</span>
       </button>
       <input id="live-name-input" type="text" class="live-name-input" maxlength="20" placeholder="Your name (optional)" aria-label="Your name for Live Finder" />
+      <button id="btn-show-qr" type="button" class="btn-live-qr" title="Show QR code for people nearby to scan & join">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+        <span>QR</span>
+      </button>
     </div>
     <div id="live-peers-strip" class="live-peers-strip hidden"></div>
 
@@ -119,6 +123,7 @@
   <div id="beacon-modal" class="beacon-modal hidden" role="dialog" aria-modal="true" aria-label="Crowd Color Beacon">
     <div class="beacon-controls-top">
       <div class="beacon-title-badge">⚡ CROWD COLOR BEACON</div>
+      <button id="beacon-qr-btn" type="button" class="beacon-top-btn" title="Show scannable QR code on top of beacon">QR Code</button>
       <button id="beacon-pulse-btn" type="button" class="beacon-top-btn">Pulse: OFF</button>
       <button id="beacon-close-btn" type="button" class="beacon-close-icon-btn" aria-label="Close beacon">✕</button>
     </div>
@@ -140,6 +145,29 @@
     </div>
   </div>
 
+  <!-- Dancefloor Join QR Modal -->
+  <div id="qr-modal" class="qr-modal hidden" role="dialog" aria-modal="true" aria-label="Scan QR to join Live Radar">
+    <div class="qr-modal-card">
+      <div class="qr-modal-header">
+        <div>
+          <div class="qr-modal-eyebrow">SCAN CAMERA TO JOIN</div>
+          <h2 id="qr-modal-title" class="qr-modal-title">BangFace · Bang Room</h2>
+        </div>
+        <button id="btn-close-qr" type="button" class="qr-close-btn" aria-label="Close QR code">✕</button>
+      </div>
+      <div id="qr-svg-wrap" class="qr-svg-wrap" aria-label="QR Code"></div>
+      <div id="qr-spot-summary" class="qr-spot-summary">Bright Mint · Zone G3</div>
+      <div id="qr-live-badge" class="qr-live-badge">
+        <span class="live-dot live"></span>
+        <span id="qr-live-text">Live radar ready — scan with phone camera</span>
+      </div>
+      <div class="qr-modal-actions">
+        <button id="btn-qr-copy" type="button" class="btn-qr-action">Copy Link</button>
+        <button id="btn-qr-done" type="button" class="btn-qr-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
@@ -147,6 +175,7 @@
   <script src="./js/color-engine.js"></script>
   <script src="./js/url-state.js"></script>
   <script src="./js/live-sync.js"></script>
+  <script src="./js/qr.js"></script>
   <script src="./js/share-app.js"></script>
 
   <!-- PWA Service Worker Registration -->

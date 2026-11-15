@@ -78,7 +78,18 @@
     liveDot: getEl('live-dot'),
     liveStatusText: getEl('live-status-text'),
     liveNameInput: getEl('live-name-input'),
-    livePeersStrip: getEl('live-peers-strip')
+    livePeersStrip: getEl('live-peers-strip'),
+    btnShowQr: getEl('btn-show-qr'),
+    beaconQrBtn: getEl('beacon-qr-btn'),
+    qrModal: getEl('qr-modal'),
+    qrModalTitle: getEl('qr-modal-title'),
+    qrSvgWrap: getEl('qr-svg-wrap'),
+    qrSpotSummary: getEl('qr-spot-summary'),
+    qrLiveBadge: getEl('qr-live-badge'),
+    qrLiveText: getEl('qr-live-text'),
+    btnCloseQr: getEl('btn-close-qr'),
+    btnQrCopy: getEl('btn-qr-copy'),
+    btnQrDone: getEl('btn-qr-done')
   };
 
   /**
@@ -324,10 +335,12 @@
           renderLiveStatus();
           renderLivePeersStrip();
           renderOverlay();
+          updateQrLiveStatusText();
         },
         onStatusChange: (status) => {
           state.liveStatus = status || { connectedCount: 0, state: 'offline' };
           renderLiveStatus();
+          updateQrLiveStatusText();
         }
       });
       liveClient.start();
@@ -927,11 +940,139 @@
       });
     }
 
+    if (els.beaconQrBtn) {
+      els.beaconQrBtn.addEventListener('click', () => {
+        openQrModal();
+      });
+    }
+
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && state.beaconOpen) {
-        if (els.beaconCloseBtn) els.beaconCloseBtn.click();
+      if (e.key === 'Escape') {
+        if (els.qrModal && !els.qrModal.classList.contains('hidden')) {
+          closeQrModal();
+        } else if (state.beaconOpen) {
+          if (els.beaconCloseBtn) els.beaconCloseBtn.click();
+        }
       }
     });
+  }
+
+  let activeShareUrl = '';
+
+  function updateQrLiveStatusText() {
+    if (!els.qrLiveText || !els.qrModal || els.qrModal.classList.contains('hidden')) return;
+    const peerCount = state.livePeers.length;
+    if (state.liveStatus && state.liveStatus.state === 'live') {
+      if (peerCount === 0) {
+        els.qrLiveText.textContent = 'Live radar ready — scan with phone camera';
+      } else {
+        els.qrLiveText.textContent = `Live · ${peerCount + 1} people on radar!`;
+      }
+    } else {
+      els.qrLiveText.textContent = 'Live radar ready — scan with phone camera';
+    }
+  }
+
+  function closeQrModal() {
+    if (els.qrModal) els.qrModal.classList.add('hidden');
+  }
+
+  function openQrModal() {
+    const room = getActiveRoom();
+    const palette = room.palette || 'wheel';
+    const spotColor = ColorEngine.getSpotColor(state.spot.x, state.spot.y, palette);
+
+    // 1. Ensure sessionId exists & live sync is started
+    if (!state.sessionId && LiveSync) {
+      state.sessionId = LiveSync.generateSessionId();
+      try {
+        sessionStorage.setItem(STORAGE_KEY_SESSION, state.sessionId);
+      } catch (_) {}
+    }
+    ensureLiveClient();
+
+    // 2. Build share URL & update URL hash
+    const shareStateObj = {
+      eventName: state.eventName,
+      activeRoomId: state.activeRoomId,
+      focusPinId: 'spot',
+      pins: [
+        {
+          id: 'spot',
+          name: getUserDisplayName(),
+          roomId: state.activeRoomId,
+          x: state.spot.x,
+          y: state.spot.y,
+          ts: Date.now(),
+          colorName: spotColor.colorName
+        }
+      ],
+      rooms: state.rooms,
+      sessionId: state.sessionId
+    };
+
+    activeShareUrl = UrlState.buildShareUrl(shareStateObj);
+    const hash = UrlState.encodeState(shareStateObj);
+    window.history.replaceState(null, '', hash);
+    updateHeader();
+
+    // 3. Render Modal Content
+    if (els.qrModalTitle) {
+      els.qrModalTitle.textContent = `${state.eventName} · ${room.name}`;
+    }
+    if (els.qrSpotSummary) {
+      els.qrSpotSummary.textContent = `${spotColor.colorName} · Zone ${spotColor.zoneCode}`;
+    }
+    updateQrLiveStatusText();
+
+    if (els.qrSvgWrap && window.ChromaQR) {
+      els.qrSvgWrap.innerHTML = window.ChromaQR.toSVG(activeShareUrl, { margin: 4 });
+    }
+
+    if (els.qrModal) {
+      els.qrModal.classList.remove('hidden');
+    }
+  }
+
+  /**
+   * Dancefloor Join QR Code Modal Handlers
+   */
+  function setupQrModal() {
+    if (els.btnShowQr) {
+      els.btnShowQr.addEventListener('click', () => {
+        openQrModal();
+      });
+    }
+
+    if (els.btnCloseQr) {
+      els.btnCloseQr.addEventListener('click', closeQrModal);
+    }
+    if (els.btnQrDone) {
+      els.btnQrDone.addEventListener('click', closeQrModal);
+    }
+
+    if (els.qrModal) {
+      els.qrModal.addEventListener('click', (e) => {
+        if (e.target === els.qrModal) {
+          closeQrModal();
+        }
+      });
+    }
+
+    if (els.btnQrCopy) {
+      els.btnQrCopy.addEventListener('click', async () => {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(activeShareUrl);
+            const orig = els.btnQrCopy.textContent;
+            els.btnQrCopy.textContent = '✓ Copied!';
+            setTimeout(() => {
+              if (els.btnQrCopy) els.btnQrCopy.textContent = orig;
+            }, 2000);
+          }
+        } catch (_) {}
+      });
+    }
   }
 
   /**
@@ -1010,6 +1151,7 @@
     updateSwatch();
 
     setupLiveFinder();
+    setupQrModal();
     setupMapInteractions();
     setupBeacon();
     setupTheme();

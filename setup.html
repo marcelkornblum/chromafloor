@@ -53,6 +53,10 @@
 
       <div class="setup-header-right">
         <button id="btn-copy-guest-link" type="button" class="btn-header-tool" title="Copy shareable link with your venue configuration">🔗 Copy Guest Link</button>
+        <button id="btn-setup-qr" type="button" class="btn-header-tool" title="Show scannable QR poster for your venue layout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+          <span>QR</span>
+        </button>
         <a id="link-open-sharing" href="./" class="btn-primary-amber btn-open-sharing" title="Open the simple crowd sharing UI">Open Sharing UI →</a>
         <button id="btn-theme-toggle" type="button" class="btn-theme-toggle" aria-label="Toggle theme">☀️</button>
       </div>
@@ -244,12 +248,36 @@
     </div>
   </div>
 
+  <!-- Dancefloor Venue QR Modal -->
+  <div id="qr-modal" class="qr-modal hidden" role="dialog" aria-modal="true" aria-label="Scan QR to open Venue Layout">
+    <div class="qr-modal-card">
+      <div class="qr-modal-header">
+        <div>
+          <div class="qr-modal-eyebrow">SCAN CAMERA TO OPEN</div>
+          <h2 id="qr-modal-title" class="qr-modal-title">Venue Floorplan</h2>
+        </div>
+        <button id="btn-close-qr" type="button" class="qr-close-btn" aria-label="Close QR code">✕</button>
+      </div>
+      <div id="qr-svg-wrap" class="qr-svg-wrap" aria-label="QR Code"></div>
+      <div id="qr-spot-summary" class="qr-spot-summary">Custom Venue Layout</div>
+      <div id="qr-live-badge" class="qr-live-badge">
+        <span class="live-dot live"></span>
+        <span id="qr-live-text">Guests can open radar on their phone instantly</span>
+      </div>
+      <div class="qr-modal-actions">
+        <button id="btn-qr-copy" type="button" class="btn-qr-action">Copy Link</button>
+        <button id="btn-qr-done" type="button" class="btn-qr-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <!-- Application Logic (Strict relative paths) -->
   <script src="./js/color-engine.js"></script>
   <script src="./js/url-state.js"></script>
+  <script src="./js/qr.js"></script>
   <script src="./js/setup-app.js"></script>
 
   <!-- PWA Service Worker Registration -->

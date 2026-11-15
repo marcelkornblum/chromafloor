@@ -59,6 +59,43 @@
   }
 
   /**
+   * Helper to serialize room list into canonical packed string
+   */
+  function packRooms(roomsList) {
+    if (!Array.isArray(roomsList) || roomsList.length === 0) return '';
+    return roomsList.slice(0, 10).map(r => {
+      const rId = sanitizeField(r.id || 'room');
+      const rName = sanitizeField(r.name || 'Room');
+      const rWidth = Math.round(Number(r.widthMeters) || 40);
+      const rDepth = Math.round(Number(r.depthMeters) || 50);
+      const rShape = sanitizeField(r.shape || 'stage');
+      const rPalette = sanitizeField(r.palette || 'wheel');
+
+      const lms = Array.isArray(r.landmarks) ? r.landmarks : [];
+      const landmarksStr = lms.slice(0, 25).map(lm => {
+        const lmId = sanitizeField(lm.id || 'lm');
+        const lmName = sanitizeField(lm.name || 'Landmark');
+        const lmType = sanitizeField(lm.type || 'custom');
+        const lmX = Math.round(Math.max(0, Math.min(1, Number(lm.x) || 0)) * 1000);
+        const lmY = Math.round(Math.max(0, Math.min(1, Number(lm.y) || 0)) * 1000);
+        return [lmId, lmName, lmType, lmX, lmY].join('*');
+      }).join('~');
+
+      return [rId, rName, rWidth, rDepth, rShape, landmarksStr, rPalette].join(':');
+    }).join('|');
+  }
+
+  function getDefaultRooms() {
+    if (ColorEngine && Array.isArray(ColorEngine.DEFAULT_ROOMS)) {
+      return ColorEngine.DEFAULT_ROOMS;
+    }
+    if (typeof window !== 'undefined' && window.ChromaColorEngine && Array.isArray(window.ChromaColorEngine.DEFAULT_ROOMS)) {
+      return window.ChromaColorEngine.DEFAULT_ROOMS;
+    }
+    return [];
+  }
+
+  /**
    * Encodes state object into #cf1= hash string
    * Schema: #cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;packedPins;packedRooms")
    * where pins is: "id:name:roomId:x1000:y1000:tsMin:colorName:note:lat:lng|..."
@@ -94,30 +131,16 @@
       return [id, name, roomId, x1000, y1000, tsMin, colorName, note, lat, lng].join(':');
     }).join('|');
 
-    // Encode packed rooms
+    // Encode packed rooms (omit if identical to DEFAULT_ROOMS unless forcePackRooms is set)
     let packedRooms = '';
     const rawRooms = Array.isArray(stateObj.rooms) ? stateObj.rooms : null;
     if (rawRooms && rawRooms.length > 0) {
-      packedRooms = rawRooms.slice(0, 10).map(r => {
-        const rId = sanitizeField(r.id || 'room');
-        const rName = sanitizeField(r.name || 'Room');
-        const rWidth = Math.round(Number(r.widthMeters) || 40);
-        const rDepth = Math.round(Number(r.depthMeters) || 50);
-        const rShape = sanitizeField(r.shape || 'stage');
-        const rPalette = sanitizeField(r.palette || 'wheel');
-
-        const lms = Array.isArray(r.landmarks) ? r.landmarks : [];
-        const landmarksStr = lms.slice(0, 25).map(lm => {
-          const lmId = sanitizeField(lm.id || 'lm');
-          const lmName = sanitizeField(lm.name || 'Landmark');
-          const lmType = sanitizeField(lm.type || 'custom');
-          const lmX = Math.round(Math.max(0, Math.min(1, Number(lm.x) || 0)) * 1000);
-          const lmY = Math.round(Math.max(0, Math.min(1, Number(lm.y) || 0)) * 1000);
-          return [lmId, lmName, lmType, lmX, lmY].join('*');
-        }).join('~');
-
-        return [rId, rName, rWidth, rDepth, rShape, landmarksStr, rPalette].join(':');
-      }).join('|');
+      packedRooms = packRooms(rawRooms);
+      const defaultRooms = getDefaultRooms();
+      const defaultPackedRooms = defaultRooms.length > 0 ? packRooms(defaultRooms) : '';
+      if (!stateObj.forcePackRooms && packedRooms && packedRooms === defaultPackedRooms) {
+        packedRooms = '';
+      }
     }
 
     const sessionId = sanitizeField(stateObj.sessionId || '');
