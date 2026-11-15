@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>ChromaFloor — Festival 2D Radar & Crowd Locator</title>
-  <meta name="description" content="Zero-backend 2D rainbow floor locator and crowd color beacon for music festivals, warehouse raves, and gigs." />
+  <title>ChromaFloor — Crowd Spot & 2D Colour Wheel</title>
+  <meta name="description" content="Super-simple 2D colour wheel crowd locator for gigs, festivals, and warehouse events." />
   <meta name="theme-color" content="#0D0F12" />
 
   <!-- Favicon & PWA Manifest (Strictly relative paths for GitHub Pages subpath) -->
@@ -20,19 +20,20 @@
 </head>
 <body>
 
-  <div class="app-shell">
+  <!-- Radically Simple, Single-Column Sharing Shell (max-width: 480px) -->
+  <div class="share-shell">
 
-    <!-- Top Navigation Header -->
-    <header class="app-header">
-      <div class="header-left">
+    <!-- Minimal Header Bar -->
+    <header class="share-header">
+      <div class="share-header-left">
         <a href="./" class="brand-link" aria-label="ChromaFloor Home">
           <div class="brand-mark">
             <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <rect width="32" height="32" rx="8" fill="#15181D" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
-              <circle cx="16" cy="16" r="10" stroke="url(#hBrandGrad)" stroke-width="3" />
+              <circle cx="16" cy="16" r="10" stroke="url(#shareBrandGrad)" stroke-width="3" />
               <circle cx="16" cy="16" r="3.5" fill="#F59E0B" />
               <defs>
-                <linearGradient id="hBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <linearGradient id="shareBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stop-color="#EF4444" />
                   <stop offset="25%" stop-color="#F59E0B" />
                   <stop offset="50%" stop-color="#10B981" />
@@ -44,304 +45,57 @@
           </div>
           <span class="brand-title">ChromaFloor</span>
         </a>
-
-        <span class="badge-tech">2D RADAR</span>
-
-        <button id="event-badge-btn" type="button" class="event-badge-btn" title="Click to rename festival or event">
-          <span class="status-dot-amber"></span>
-          <span id="event-name-label">My Event</span>
-          <span class="event-edit-icon" aria-hidden="true">✎</span>
-        </button>
+        <span id="share-event-name" class="share-event-pill">My Event</span>
       </div>
 
-      <div class="header-right">
-        <button id="btn-edit-layout" type="button" class="btn-header-tool" title="Customize rooms and place Stage, Bar, Entrance, etc.">
-          <span class="tool-icon">🛠️</span>
-          <span id="edit-layout-btn-text">Edit Venue</span>
-        </button>
-
-        <button id="btn-share-venue" type="button" class="btn-header-tool" title="Copy shareable link with your custom room layout">
-          <span class="tool-icon">🔗</span>
-          <span>Share Layout</span>
-        </button>
-
-        <button id="btn-theme-toggle" type="button" class="btn-theme-toggle" title="Toggle daylight contrast theme" aria-label="Toggle theme">
-          ☀️
-        </button>
+      <div class="share-header-right">
+        <a id="link-to-setup" href="./setup.html" class="btn-setup-link" title="Customize rooms, stage & bar">⚙ Setup</a>
+        <button id="btn-theme-toggle" type="button" class="btn-theme-toggle" aria-label="Toggle theme">☀️</button>
       </div>
     </header>
 
-    <!-- Room Selector Strip -->
-    <div class="room-strip-container">
-      <div id="room-tabs" class="room-tabs" role="tablist" aria-label="Festival Stages"></div>
-      <div class="room-strip-actions">
-        <button id="btn-room-settings" type="button" class="btn-room-settings" title="Edit active room & place fixtures">✏️ Customize Room</button>
-        <button id="btn-add-room" type="button" class="btn-add-room" title="Add a custom stage or venue room">+ Add Room</button>
+    <!-- 1. Room Selector -->
+    <nav id="room-tabs" class="room-tabs share-room-tabs" role="tablist" aria-label="Select Room"></nav>
+
+    <!-- Optional incoming friend banner (hidden unless a shared link was opened) -->
+    <div id="shared-friend-banner" class="shared-friend-banner hidden"></div>
+
+    <!-- 2. The 2D Colour Wheel Map Card -->
+    <section class="wheel-stage-card" aria-label="2D Colour Wheel Stage Radar">
+      <div class="wheel-top-strip">
+        <div class="orientation-box">
+          <span class="stage-dir-dot"></span>
+          <span id="orientation-hint" class="orientation-hint">FACING STAGE ↑</span>
+        </div>
+        <button id="btn-flip-wheel" type="button" class="btn-flip-wheel" title="Flip perspective 180°">🔄 Flip</button>
       </div>
+
+      <!-- Square 1:1 Viewport -->
+      <div id="map-viewport" class="map-viewport share-wheel-viewport" tabindex="0" role="application" aria-label="Tap or drag on the colour wheel to choose where you are">
+        <canvas id="floor-canvas" width="800" height="800"></canvas>
+        <div id="map-overlay" class="map-overlay"></div>
+      </div>
+    </section>
+
+    <!-- 3. Your Chosen Colour Readout -->
+    <div id="swatch-card" class="swatch-card share-swatch-card">
+      <div class="share-swatch-info">
+        <div id="swatch-color-name" class="swatch-color-name">Pearl White</div>
+        <div id="swatch-meta" class="swatch-meta">#F8FAFC · Zone D4 · Center</div>
+      </div>
+      <button id="btn-fullscreen-beacon" type="button" class="btn-fullscreen-beacon" title="Fill screen with your colour">⛶ Fullscreen</button>
     </div>
 
-    <!-- Main 2-Column Grid Layout -->
-    <main class="app-main">
+    <!-- 4. Single Share / Copy Button -->
+    <button id="btn-share-spot" type="button" class="btn-primary-amber btn-single-share">
+      <span id="share-btn-label">Share / Copy My Spot</span>
+    </button>
 
-      <!-- LEFT COLUMN: Stage Radar Card -->
-      <section class="stage-map-card" aria-label="Stage Radar Floor">
-        <!-- Top Map Bar -->
-        <div class="map-top-bar">
-          <div class="orientation-box">
-            <span class="stage-dir-dot"></span>
-            <span id="orientation-label">FACING STAGE ↑</span>
-          </div>
-
-          <div class="map-actions-group">
-            <button id="btn-map-edit-layout" type="button" class="map-action-btn" title="Place &amp; drag Stage, Bar, Toilets, Entrance, etc.">
-              <span>✏️</span>
-              <span id="map-edit-btn-label">Edit Floor</span>
-            </button>
-            <button id="btn-flip-view" type="button" class="map-action-btn" title="Flip view 180° perspective">
-              <span>🔄</span>
-              <span>Flip View</span>
-            </button>
-            <button id="btn-toggle-grid" type="button" class="map-action-btn active" title="Toggle A1-H8 grid lines">
-              <span>Grid A1-H8</span>
-            </button>
-            <button id="btn-gps-assist" type="button" class="map-action-btn" title="Enable GPS assist">
-              <span>📍</span>
-              <span>GPS Assist</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Inline Venue Layout Editor Panel -->
-        <div id="layout-editor-panel" class="layout-editor-panel hidden" aria-label="Venue and Room Layout Editor">
-          <!-- 1. Room Config Row -->
-          <div class="editor-room-row">
-            <input id="editor-room-name" type="text" class="field-input editor-inline-input" maxlength="32" placeholder="Room name" aria-label="Room Name" />
-            <div class="editor-dim-group">
-              <input id="editor-room-width" type="number" class="field-input editor-dim-input" min="10" max="500" value="40" aria-label="Width in meters" />
-              <span class="editor-dim-sep">m ×</span>
-              <input id="editor-room-depth" type="number" class="field-input editor-dim-input" min="10" max="500" value="50" aria-label="Depth in meters" />
-              <span class="editor-dim-sep">m</span>
-            </div>
-            <label class="checkbox-row editor-snap-toggle">
-              <input id="btn-editor-snap-grid" type="checkbox" class="styled-checkbox" />
-              <span>Snap</span>
-            </label>
-            <button id="btn-editor-clear-landmarks" type="button" class="chip-btn" title="Remove all fixtures from this room">Clear Floor</button>
-            <button id="btn-editor-delete-room" type="button" class="chip-btn chip-danger" title="Delete this room">Delete Room</button>
-            <button id="btn-editor-done" type="button" class="btn-editor-done">✓ Done</button>
-          </div>
-
-          <!-- 2. Placeable Fixture Palette Row -->
-          <div class="editor-palette-section">
-            <div id="editor-mode-hint" class="editor-mode-hint">Tap a fixture below then tap the floor to place it — or drag any placed item directly on the map:</div>
-            <div id="fixture-palette" class="fixture-palette">
-              <button type="button" class="fixture-chip" data-fixture-type="stage">🎸 Stage</button>
-              <button type="button" class="fixture-chip" data-fixture-type="dj">🎧 DJ Booth</button>
-              <button type="button" class="fixture-chip" data-fixture-type="bar">🍸 Bar</button>
-              <button type="button" class="fixture-chip" data-fixture-type="booth">🎛️ Sound Desk</button>
-              <button type="button" class="fixture-chip" data-fixture-type="speaker">🔊 Speaker</button>
-              <button type="button" class="fixture-chip" data-fixture-type="entrance">🚪 Entrance</button>
-              <button type="button" class="fixture-chip" data-fixture-type="wc">🚻 Toilets</button>
-              <button type="button" class="fixture-chip" data-fixture-type="water">💧 Water</button>
-              <button type="button" class="fixture-chip" data-fixture-type="cloak">🧥 Cloakroom</button>
-              <button type="button" class="fixture-chip" data-fixture-type="chill">🌿 Chill / VIP</button>
-              <button type="button" class="fixture-chip" data-fixture-type="pillar">🏛️ Pillar</button>
-              <button type="button" class="fixture-chip" data-fixture-type="custom">🏷️ Custom...</button>
-            </div>
-          </div>
-
-          <!-- 3. Selected Fixture Inspector Row -->
-          <div id="selected-fixture-bar" class="selected-fixture-bar hidden">
-            <span id="selected-fixture-icon" class="selected-fixture-icon">🎸</span>
-            <input id="selected-fixture-name" type="text" class="field-input editor-inline-input" maxlength="28" placeholder="Fixture label (e.g. Main Bar)" aria-label="Fixture Label" />
-            <select id="selected-fixture-type" class="field-select editor-type-select" aria-label="Fixture Type">
-              <option value="stage">Stage</option>
-              <option value="dj">DJ Booth</option>
-              <option value="bar">Bar</option>
-              <option value="booth">Sound Desk</option>
-              <option value="speaker">Speaker</option>
-              <option value="entrance">Entrance</option>
-              <option value="wc">Toilets</option>
-              <option value="water">Water</option>
-              <option value="cloak">Cloakroom</option>
-              <option value="chill">Chill / VIP</option>
-              <option value="pillar">Pillar</option>
-              <option value="custom">Custom...</option>
-            </select>
-            <span id="selected-fixture-pos" class="selected-fixture-pos">E1</span>
-            <button id="btn-delete-fixture" type="button" class="chip-btn chip-danger">✕ Remove</button>
-          </div>
-        </div>
-
-        <!-- Interactive Map Viewport -->
-        <div id="map-viewport" class="map-viewport" tabIndex="0" role="region" aria-label="Interactive 2D rainbow floor canvas">
-          <canvas id="floor-canvas" width="900" height="800"></canvas>
-          <div id="map-overlay" class="map-overlay"></div>
-        </div>
-
-        <!-- Bottom Map Bar -->
-        <div class="map-bottom-bar">
-          <div class="bottom-left-info">
-            <span class="door-icon">🚪</span>
-            <span id="entrance-label">BACK ENTRANCE / MAIN ARCH</span>
-          </div>
-          <div class="bottom-right-info">
-            <span id="room-dimensions-label">70M × 80M</span>
-          </div>
-        </div>
-
-        <!-- Quick Snap Row Below Card -->
-        <div class="quick-snap-container">
-          <span class="quick-snap-title">QUICK SNAP:</span>
-          <div id="quick-snap-list" class="quick-snap-list"></div>
-        </div>
-      </section>
-
-      <!-- RIGHT COLUMN: Instrument, Form & Wayfinder Stack -->
-      <aside class="control-stack" aria-label="Controls and Wayfinding">
-
-        <!-- 1. Spot Swatch Card -->
-        <div id="swatch-card" class="swatch-card">
-          <div class="swatch-top-row">
-            <span id="swatch-zone-badge" class="swatch-zone-badge">E6</span>
-            <button id="btn-flash-beacon" type="button" class="btn-flash-beacon">⚡ Flash Beacon</button>
-          </div>
-          <h2 id="swatch-color-name" class="swatch-color-name">Deep Cyan</h2>
-          <div class="swatch-meta-row">
-            <span id="swatch-hex" class="swatch-hex">#08CBCF</span>
-            <span id="swatch-position-meta" class="swatch-position-meta">Mid-Back · Center · Toward Sound Desk</span>
-          </div>
-        </div>
-
-        <!-- 2. Form & Drop Spot Card -->
-        <div class="panel-card form-card">
-          <div class="form-group">
-            <label for="user-name-input" class="field-label">YOUR NAME</label>
-            <input id="user-name-input" type="text" class="field-input" value="" maxlength="28" autocomplete="nickname" placeholder="Your name or nickname" />
-          </div>
-
-          <div class="form-group">
-            <label for="user-note-input" class="field-label">SPOT NOTE (TOTEM, LANDMARK, OUTFIT)</label>
-            <input id="user-note-input" type="text" class="field-input" placeholder="e.g. Near left sound tower, neon bucket hat" maxlength="80" />
-          </div>
-
-          <!-- Note Preset Chips -->
-          <div id="note-preset-chips" class="note-preset-chips">
-            <button type="button" class="chip-btn" data-note="By speaker">By speaker</button>
-            <button type="button" class="chip-btn" data-note="At Sound Desk">At Sound Desk</button>
-            <button type="button" class="chip-btn" data-note="Holding totem">Holding totem</button>
-            <button type="button" class="chip-btn" data-note="Grabbing drinks">Grabbing drinks</button>
-          </div>
-
-          <!-- Live GPS Checkbox Row -->
-          <div class="gps-control-row">
-            <label class="checkbox-row">
-              <input id="attach-gps-checkbox" type="checkbox" class="styled-checkbox" />
-              <span class="checkbox-text">Attach live GPS coordinates for friends</span>
-              <span id="gps-status-text" class="gps-status-text"></span>
-            </label>
-          </div>
-
-          <!-- Primary & Secondary CTAs -->
-          <div class="cta-actions-group">
-            <button id="btn-drop-share" type="button" class="btn-primary-amber">Drop My Spot &amp; Share Link</button>
-            <button id="btn-copy-link" type="button" class="btn-secondary-dark">Copy Link Only</button>
-          </div>
-        </div>
-
-        <!-- 3. Direct Group Chat Share Section -->
-        <div class="panel-card share-card">
-          <div class="section-title-row">
-            <span class="section-heading">DIRECT GROUP CHAT SHARE</span>
-          </div>
-
-          <!-- 5-Button Share Grid -->
-          <div class="share-grid-5">
-            <button id="btn-share-native" type="button" class="share-btn" title="Native System Share Sheet">
-              <span class="share-icon">↗</span>
-              <span class="share-name">Share</span>
-            </button>
-            <button id="btn-share-whatsapp" type="button" class="share-btn" title="Share via WhatsApp">
-              <span class="share-icon">💬</span>
-              <span class="share-name">WhatsApp</span>
-            </button>
-            <button id="btn-share-telegram" type="button" class="share-btn" title="Share via Telegram">
-              <span class="share-icon">✈</span>
-              <span class="share-name">Telegram</span>
-            </button>
-            <button id="btn-share-sms" type="button" class="share-btn" title="Share via SMS">
-              <span class="share-icon">📱</span>
-              <span class="share-name">SMS</span>
-            </button>
-            <button id="btn-copy-message" type="button" class="share-btn" title="Copy Full Message to Clipboard">
-              <span class="share-icon">📋</span>
-              <span class="share-name">Message</span>
-            </button>
-          </div>
-
-          <!-- Include Crew Checkbox -->
-          <div class="share-option-row">
-            <label class="checkbox-row">
-              <input id="include-crew-checkbox" type="checkbox" class="styled-checkbox" checked />
-              <span class="checkbox-text">Include whole active crew on map</span>
-            </label>
-          </div>
-
-          <!-- Message Preview Box -->
-          <div class="chat-preview-box">
-            <div class="chat-preview-header">
-              <span class="preview-tag">CHAT MESSAGE PREVIEW</span>
-              <span id="chat-preview-count" class="preview-crew-count">0 PINS</span>
-            </div>
-            <div id="chat-message-preview" class="chat-message-preview"></div>
-          </div>
-        </div>
-
-        <!-- 4. Crew Radar & Walking Wayfinder Card -->
-        <div id="crew-wayfinder-card" class="crew-wayfinder-card">
-          <div class="crew-card-header">
-            <div class="crew-header-left">
-              <span class="crew-header-title">CREW RADAR &amp; WALKING GUIDE</span>
-              <span id="crew-active-count" class="crew-count-pill">0 ON FLOOR</span>
-            </div>
-            <button id="btn-clear-pins" type="button" class="chip-btn hidden" title="Clear all pins on floor">Clear Pins</button>
-          </div>
-
-          <!-- Empty State -->
-          <div id="crew-empty-state" class="crew-empty-state">No crew pins on the floor yet. Drop your spot above or open a friend's group-chat link to get live walking sightlines.</div>
-
-          <!-- Dynamic Crew Members List -->
-          <div id="crew-list" class="crew-list"></div>
-
-          <!-- Walking Guidance Banner -->
-          <div id="wayfinder-banner" class="wayfinder-banner hidden">
-            <div class="wayfinder-top-line">
-              <div id="wayfinder-headline" class="wayfinder-headline">Select a crew member to start walking sightline</div>
-              <div id="wayfinder-target" class="wayfinder-target">→ Target</div>
-            </div>
-            <div class="wayfinder-bar-track">
-              <div id="wayfinder-gradient-bar" class="wayfinder-gradient-bar"></div>
-            </div>
-            <div class="wayfinder-bottom-line">
-              <span id="wayfinder-shift-text" class="wayfinder-shift-text">Follow color gradient on floor</span>
-              <span id="wayfinder-landmark-text" class="wayfinder-landmark-text">Sightline active</span>
-            </div>
-          </div>
-        </div>
-
-      </aside>
-
-    </main>
-
-    <!-- Footer Meta -->
-    <footer class="app-footer">
-      <div class="footer-inner">
-        <span>ChromaFloor · Zero-Backend Festival Radar</span>
-        <span class="footer-sep">·</span>
-        <span>All spots preserved in URL hash (#cf1=)</span>
-        <span class="footer-sep">·</span>
-        <span class="offline-badge">⚡ Offline Ready PWA</span>
-      </div>
+    <!-- Minimal footer info -->
+    <footer class="share-footer">
+      <span>Zero-Backend 2D Colour Locator</span>
+      <span class="footer-sep">·</span>
+      <span>PWA Offline</span>
     </footer>
 
   </div>
@@ -355,80 +109,29 @@
     </div>
 
     <div class="beacon-center-content">
-      <div id="beacon-room-label" class="beacon-room-label">Main Stage</div>
-      <div id="beacon-zone-code" class="beacon-zone-code">E6</div>
-      <div id="beacon-color-title" class="beacon-color-title">Deep Cyan</div>
-      <div id="beacon-hex-code" class="beacon-hex-code">#08CBCF</div>
-      <div id="beacon-user-meta" class="beacon-user-meta">You · Toward Sound Desk</div>
-      <div id="beacon-brightness-tip" class="beacon-brightness-tip">
-        Hold screen high above the crowd facing your friends. They will see your color flash from across the field.
+      <div id="beacon-room-label" class="beacon-room-label">Main Room</div>
+      <div id="beacon-zone-code" class="beacon-zone-code">D4</div>
+      <div id="beacon-color-title" class="beacon-color-title">Pearl White</div>
+      <div id="beacon-hex-code" class="beacon-hex-code">#F8FAFC</div>
+      <div class="beacon-brightness-tip">
+        Hold screen high above the crowd facing your friends so they spot your colour across the floor.
       </div>
     </div>
 
     <div class="beacon-controls-bottom">
-      <button type="button" class="beacon-exit-btn" onclick="document.getElementById('beacon-close-btn').click()">
+      <button id="beacon-exit-btn" type="button" class="beacon-exit-btn" onclick="document.getElementById('beacon-close-btn').click()">
         Exit Beacon (Tap anywhere or Esc)
       </button>
     </div>
   </div>
 
-  <!-- Add Custom Room Modal Dialog -->
-  <div id="add-room-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Add Stage or Room">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 class="modal-title">Add Stage or Tent</h3>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label for="new-room-name" class="field-label">ROOM OR STAGE NAME</label>
-          <input id="new-room-name" type="text" class="field-input" placeholder="e.g. Forest Clearing, Bass Dome" maxlength="32" />
-        </div>
-
-        <div class="modal-grid-2">
-          <div class="form-group">
-            <label for="new-room-width" class="field-label">WIDTH (METERS)</label>
-            <input id="new-room-width" type="number" class="field-input" value="40" min="10" max="500" />
-          </div>
-          <div class="form-group">
-            <label for="new-room-depth" class="field-label">DEPTH (METERS)</label>
-            <input id="new-room-depth" type="number" class="field-input" value="50" min="10" max="500" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="new-room-template" class="field-label">FIXTURE TEMPLATE</label>
-          <select id="new-room-template" class="field-select">
-            <option value="blank">Blank Floor (Place Stage, Bar &amp; Entrance yourself)</option>
-            <option value="club">Club / Gig Venue (Stage, Bar, Toilets, Entrance)</option>
-            <option value="festival">Festival Stage (Stage, L/R Stacks, Sound Desk, Bar, Water, Entrance)</option>
-            <option value="boiler">360° Center Booth (Center DJ Booth, 2 Bars, Chill, Entrance)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="new-room-shape" class="field-label">ACOUSTIC SHAPE</label>
-          <select id="new-room-shape" class="field-select">
-            <option value="stage">Outdoor Stage (Forward Sound &amp; Rear Arch)</option>
-            <option value="warehouse">Industrial Warehouse (Pillars &amp; Side Bars)</option>
-            <option value="grove">Forest Grove (Organic Clearing)</option>
-            <option value="dome">Geodesic Bass Dome (Central Cluster)</option>
-          </select>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="btn-cancel-room" type="button" class="btn-modal-secondary">Cancel</button>
-        <button id="btn-save-room" type="button" class="btn-modal-primary">Create Stage</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast Container (Fixed Notification) -->
+  <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-  <!-- Application Logic (Loaded in exact order with relative paths) -->
+  <!-- Application Logic (Strict relative paths) -->
   <script src="./js/color-engine.js"></script>
   <script src="./js/url-state.js"></script>
-  <script src="./js/app.js"></script>
+  <script src="./js/share-app.js"></script>
 
   <!-- PWA Service Worker Registration -->
   <script>

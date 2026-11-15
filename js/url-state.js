@@ -62,7 +62,7 @@
    * Encodes state object into #cf1= hash string
    * Schema: #cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;packedPins;packedRooms")
    * where pins is: "id:name:roomId:x1000:y1000:tsMin:colorName:note:lat:lng|..."
-   * where packedRooms is: "roomId:roomName:widthMeters:depthMeters:shape:landmarksStr|..."
+   * where packedRooms is: "roomId:roomName:widthMeters:depthMeters:shape:landmarksStr:palette|..."
    * where landmarksStr is: "lmId*lmName*lmType*x1000*y1000~..."
    */
   function encodeState(stateObj) {
@@ -103,6 +103,7 @@
         const rWidth = Math.round(Number(r.widthMeters) || 40);
         const rDepth = Math.round(Number(r.depthMeters) || 50);
         const rShape = sanitizeField(r.shape || 'stage');
+        const rPalette = sanitizeField(r.palette || 'wheel');
 
         const lms = Array.isArray(r.landmarks) ? r.landmarks : [];
         const landmarksStr = lms.slice(0, 25).map(lm => {
@@ -114,7 +115,7 @@
           return [lmId, lmName, lmType, lmX, lmY].join('*');
         }).join('~');
 
-        return [rId, rName, rWidth, rDepth, rShape, landmarksStr].join(':');
+        return [rId, rName, rWidth, rDepth, rShape, landmarksStr, rPalette].join(':');
       }).join('|');
     }
 
@@ -199,6 +200,8 @@
           const depthMeters = parseInt(rf[3], 10) || 50;
           const shape = desanitizeField(rf[4]) || 'stage';
           const landmarksRaw = rf[5] || '';
+          // 7th field is palette, defaults to 'wheel'
+          const palette = desanitizeField(rf[6]) || 'wheel';
 
           const landmarks = [];
           if (landmarksRaw.length > 0) {
@@ -232,6 +235,7 @@
             widthMeters,
             depthMeters,
             shape,
+            palette,
             landmarks
           });
         }
@@ -251,25 +255,72 @@
   }
 
   /**
-   * Builds clean full URL that works identically on GitHub Pages, custom domain, and localhost
+   * Returns base directory path ending with '/' by stripping setup.html or index.html
+   */
+  function getBaseDirPath() {
+    if (typeof window !== 'undefined' && window.location) {
+      let path = window.location.pathname || '/';
+      // Strip trailing filename if index.html or setup.html
+      path = path.replace(/(index\.html|setup\.html)$/i, '');
+      if (!path.endsWith('/')) {
+        path += '/';
+      }
+      return path;
+    }
+    return '/chromafloor/';
+  }
+
+  /**
+   * Builds clean full URL that points to the simple Sharing UI (index.html)
+   * Subpath-safe for GitHub Pages, custom domain, and localhost
    */
   function buildShareUrl(stateObj) {
     const hash = encodeState(stateObj);
     if (typeof window !== 'undefined' && window.location) {
       const origin = window.location.origin || '';
-      const pathname = window.location.pathname || '/';
-      return `${origin}${pathname}${hash}`;
+      const baseDir = getBaseDirPath();
+      return `${origin}${baseDir}${hash}`;
     }
     return `https://marcelkornblum.github.io/chromafloor/${hash}`;
   }
 
   /**
-   * Builds high-converting group chat message and concise preview
-   * matching: 🌈 {name} is at {colorName} ({zoneCode}) [{hex}] · {room.name} ({eventName}) 📍 {nearestPhrase}{notePart}{crewCount > 1 ? ` 👥 ${crewCount} on floor` : ''} 🔗 Open floor radar: {shareUrl}
+   * Builds clean full URL that points to the Venue Setup Studio (setup.html)
+   * Subpath-safe for GitHub Pages, custom domain, and localhost
+   */
+  function buildSetupUrl(stateObj) {
+    const hash = encodeState(stateObj);
+    if (typeof window !== 'undefined' && window.location) {
+      const origin = window.location.origin || '';
+      const baseDir = getBaseDirPath();
+      return `${origin}${baseDir}setup.html${hash}`;
+    }
+    return `https://marcelkornblum.github.io/chromafloor/setup.html${hash}`;
+  }
+
+  /**
+   * Builds clean single-spot share message
+   */
+  function buildSimpleSpotMessage(opts) {
+    const opt = opts || {};
+    const spotColor = opt.spotColor || { colorName: 'Pearl White', hex: '#FFFFFF', zoneCode: 'E5' };
+    const room = opt.room || { name: 'Main Room' };
+    const eventName = opt.eventName;
+    const nearestPhrase = opt.nearestPhrase || '';
+    const shareUrl = opt.shareUrl || '';
+
+    const nearPart = nearestPhrase ? ` · ${nearestPhrase}` : '';
+    const eventPart = (eventName && eventName !== 'My Event') ? ` — ${eventName}` : '';
+
+    return `🎨 I'm at ${spotColor.colorName} (${spotColor.hex} · Zone ${spotColor.zoneCode}${nearPart}) in ${room.name}${eventPart}\n📍 See exact spot on the colour wheel: ${shareUrl}`;
+  }
+
+  /**
+   * Legacy message builders for multi-crew chat messages
    */
   function buildChatMessages(opts) {
     const opt = opts || {};
-    const userPin = opt.userPin || { name: 'Me', colorName: 'Deep Cyan', zoneCode: 'E6', hex: '#08CBCF' };
+    const userPin = opt.userPin || { name: 'Me', colorName: 'Pearl White', zoneCode: 'E5', hex: '#FFFFFF' };
     const room = opt.room || { name: 'Main Room' };
     const eventName = opt.eventName || 'My Event';
     const crewCount = Number.isFinite(opt.crewCount) ? opt.crewCount : 1;
@@ -278,9 +329,9 @@
     const note = (userPin.note || '').trim();
 
     const name = userPin.name || 'Me';
-    const colorName = userPin.colorName || 'Deep Cyan';
-    const zoneCode = userPin.zoneCode || 'E6';
-    const hex = userPin.hex || '#08CBCF';
+    const colorName = userPin.colorName || 'Pearl White';
+    const zoneCode = userPin.zoneCode || 'E5';
+    const hex = userPin.hex || '#FFFFFF';
     const roomName = room.name || 'Main Room';
 
     const notePart = note ? ` · "${note}"` : '';
@@ -296,9 +347,6 @@
     };
   }
 
-  /**
-   * Builds venue floorplan share message
-   */
   function buildVenueShareMessage(opts) {
     const opt = opts || {};
     const eventName = opt.eventName || 'My Event';
@@ -315,7 +363,10 @@
     desanitizeField,
     encodeState,
     decodeHash,
+    getBaseDirPath,
     buildShareUrl,
+    buildSetupUrl,
+    buildSimpleSpotMessage,
     buildChatMessages,
     buildVenueShareMessage
   };

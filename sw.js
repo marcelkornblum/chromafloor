@@ -4,17 +4,19 @@
  * Uses relative paths so it functions identically under GitHub Pages subpaths.
  */
 
-const CACHE_NAME = 'chromafloor-v2';
+const CACHE_NAME = 'chromafloor-v3';
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './setup.html',
   './styles.css',
   './manifest.json',
   './favicon.svg',
   './js/color-engine.js',
   './js/url-state.js',
-  './js/app.js'
+  './js/share-app.js',
+  './js/setup-app.js'
 ];
 
 // Install: Cache all static app shell assets

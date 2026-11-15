@@ -1,86 +1,97 @@
 # ChromaFloor 🌈
 
-> **Zero-Backend 2D Rainbow Floor Locator & Field Instrument for Music Festivals, Gigs, and Warehouse Raves.**
+> **Zero-Backend 2D Colour Wheel Crowd Locator & Venue Setup Studio for Music Festivals, Gigs, and Warehouse Raves.**
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-amber?style=flat-square&logo=github)](https://marcelkornblum.github.io/chromafloor/)
 [![Offline PWA](https://img.shields.io/badge/PWA-Offline_Ready-emerald?style=flat-square)](https://marcelkornblum.github.io/chromafloor/)
-[![Zero Backend](https://img.shields.io/badge/Architecture-100%25_Client_Side-cyan?style=flat-square)](#zero-backend-url-state-protocol)
+[![Zero Backend](https://img.shields.io/badge/Architecture-100%25_Client_Side-cyan?style=flat-square)](#zero-backend-url-hash-protocol)
 
 ---
 
 ## ⚡ The Festival Problem ChromaFloor Solves
 
-In massive festival crowds (50,000+ people), mobile cellular towers saturate within minutes. Phone texts queue indefinitely, GPS accuracy wanders by 40+ meters, and friends text useless landmarks (*"I'm near the sound booth on the left"*).
+In massive festival crowds and packed club venues, mobile cellular networks jam. Texts queue indefinitely, GPS wanders by 40+ meters indoors or under canvas, and friends send vague landmarks (*"I'm near the sound booth on the left"*).
 
-**ChromaFloor solves this with human-distinguishable 2D color space and sightlines:**
-1. **Perceptual Rainbow Grid**: The dance floor is mapped across an 8×8 grid (`A1` to `H8`) with smooth, high-contrast spectral hues (`Coral`, `Amber`, `Lime`, `Mint`, `Cyan`, `Azure`, `Cobalt`, `Rose`).
-2. **Interactive Venue & Room Builder**: Build and customize rooms with real-world dimensions. Place and drag fixtures directly on the floor — including **Stage**, **DJ Booth**, **Bar**, **Sound Desk**, **Speakers**, **Toilets**, **Entrance**, **Water Points**, **Cloakroom**, and **VIP/Chill areas**.
-3. **Instant Visual Communication**: In WhatsApp, Telegram, or SMS, sending *"Alex is at Deep Cyan (E6)"* gives friends an instant mental model of where you are standing relative to the stage and bar.
-4. **Crowd Color Beacon**: Tap **⚡ Flash Beacon** to turn your entire phone screen into a high-intensity pulsing color torch (`#08CBCF`), held aloft so friends walking into your zone spot you immediately.
-5. **Walking Sightline Guide**: Locks a live guidance line from your position to any crew member on the floor, calculating exact distance (e.g. `29m · 38 steps`) and color transitions (*"Shift Vivid Mint → Bright Lime"*).
-6. **Zero-Bar Offline PWA**: Installable Progressive Web App with an offline-first Service Worker (`sw.js`). Loads instantly without cellular reception in the middle of a festival field.
+**ChromaFloor solves this with a human-distinguishable 2D colour field and a dual-UI architecture:**
+1. **2D Swirled Colour Wheel**: Unlike 1D columnar rainbows where distance from stage is ambiguous, ChromaFloor features a continuous 2D perceptual colour space (Archimedean spiral hue variation with glowing Pearl center and jewel-toned perimeter). Moving forward, back, left, or right shifts the colour distinctly across both axes.
+2. **Clean Two-UI Architecture**:
+   - **Sharing UI (`index.html`)**: Radically simple, single-column crowd locator (`max-width: 480px`). Contains only the room selector, 2D colour wheel, live colour swatch readout, and a single **Share / Copy My Spot** 1-click action.
+   - **Setup Studio (`setup.html`)**: Dedicated venue and room configuration studio (`max-width: 1120px`). Lets organizers and attendees configure room dimensions (10m to 500m), choose colour patterns (*Swirled Wheel*, *Polar Wheel*, *Prism Wave*), and place or drag fixtures (Stage, DJ Booth, Bar, Sound Desk, Speakers, Entrance, Toilets, Water, Cloakroom, Chill / VIP, Pillar, Custom).
+3. **Crowd Color Beacon**: Tap **⛶ Fullscreen** to turn your entire phone screen into a high-visibility colour torch (`#F8FAFC`, `#08CBCF`), held high above the crowd so arriving friends spot your beacon instantly.
+4. **Zero-Backend URL Hash Protocol (`#cf1=`)**: Venue configurations, custom room dimensions, fixture placements, and friend spots encode into the URL hash with no database, no servers, and zero accounts.
+5. **Zero-Bar Offline PWA**: Offline-first Service Worker (`sw.js` v3) caches all app assets, launching instantly even with zero phone signal in remote fields or concrete basements.
+
+---
+
+## 📱 The Two UIs
+
+### 1. `index.html` — Super-Simple Sharing UI
+Designed for fast, one-handed mobile use in crowded, loud environments:
+- **Room Selector**: Quick tab bar switching between venue stages and rooms.
+- **2D Colour Wheel**: Tactile 1:1 square canvas showing the venue floor and landmarks. Tap or drag to mark your exact spot. Flip 180° for perspective matching.
+- **Your Chosen Colour**: Clear readout showing your spot's color name (*"Pearl White"*, *"Deep Cyan"*, *"Bright Lime"*), hex code, and zone coordinates (*"Zone D4 · Center"*).
+- **Fullscreen Beacon**: Fills screen with high-luminance spot colour.
+- **Single Share / Copy Button**: 1-click copies a formatted chat message and URL hash to clipboard and opens the native mobile share sheet.
+
+### 2. `setup.html` — Venue & Room Setup Studio
+A spacious hardware-instrument studio layout for venue planning:
+- **Interactive Floorplan**: Square placement canvas with A1-H8 grid guides, 180° flip, and grid snap toggle.
+- **Fixture Palette**: 12 draggable and placeable fixtures:
+  - 🎸 Stage · 🎧 DJ Booth · 🍸 Bar · 🎛️ Sound Desk
+  - 🔊 Speaker · 🚪 Entrance · 🚻 Toilets · 💧 Water
+  - 🧥 Cloakroom · 🌿 Chill / VIP · 🏛️ Pillar · 🏷️ Custom
+- **Room Properties**: Custom width and depth scaling (10m–500m), room renaming, and 2D colour pattern selection (*Swirled Colour Wheel*, *Classic Radial Wheel*, *2D Diagonal Prism Wave*).
+- **One-Click Guest Link**: Generates and copies clean guest sharing links to send to attendees or crew.
 
 ---
 
 ## 🌐 Live GitHub Pages Deployment
 
 - **Production URL**: [https://marcelkornblum.github.io/chromafloor/](https://marcelkornblum.github.io/chromafloor/)
-- **Relative Asset Architecture**: All CSS, SVG, JavaScript, Manifest, and Service Worker assets use strict relative paths (`./styles.css`, `./sw.js`, `./js/...`), making the app 100% portable across custom root domains, subdirectories, and offline local files.
-
----
-
-## 🛠️ Custom Room & Venue Floorplan Builder
-
-ChromaFloor gives event-goers and organizers a tactile way to lay out any music venue, gig space, warehouse, or festival field:
-- **Place & Drag Fixtures**: Tap any fixture in the palette (Stage, DJ Booth, Bar, Sound Desk, Speaker, Entrance, Toilets, Water, Cloakroom, Chill, Pillar, Custom) then tap on the floor to position it. Drag fixtures freely around the floor.
-- **Fixture Inspector**: Tap placed fixtures to adjust their names, change fixture types, or remove them.
-- **Room Dimension Presets**: Custom width and depth scaling from 10m to 500m with automatic grid snapping.
-- **Venue Sharing**: Tap **Share Layout** in the header to export custom floor plans directly via `#cf1=` hash link so all friends view the identical room and landmark layout.
+- **Setup Studio**: [https://marcelkornblum.github.io/chromafloor/setup.html](https://marcelkornblum.github.io/chromafloor/setup.html)
+- **Relative Asset Architecture**: All CSS, SVG, JavaScript, Manifest, and Service Worker assets use strict relative paths (`./styles.css`, `./sw.js`, `./js/...`), making the app 100% portable across GitHub Pages subpaths, custom domains, and local offline files.
 
 ---
 
 ## 🔗 Zero-Backend `#cf1=` URL Hash Protocol
 
-ChromaFloor requires **no database, no backend server, and no user accounts**. All multi-user crew positions, custom venue configurations, room layouts, and spot notes are encoded into a compact, tamper-resilient URL hash:
+All multi-user crew spots, venue configurations, room layouts, and landmarks are encoded into the URL hash:
 
 ```text
 https://marcelkornblum.github.io/chromafloor/#cf1=<ENCODED_PAYLOAD>
 ```
 
-### Hash Schema
+### Share Message Format
 
 ```text
-#cf1=encodeURIComponent("eventName;activeRoomId;focusPinId;pins;rooms")
+🌈 Alex is at Deep Cyan (Zone E6) [#08CBCF] · Main Stage (My Event) · Near Sound Desk
+🔗 Open floor radar: https://marcelkornblum.github.io/chromafloor/#cf1=...
 ```
-
-- **Share Message Format**:
-  ```text
-  🌈 Alex is at Deep Cyan (E6) [#08CBCF] · Main Stage (My Event) 📍 Toward Main Bar · "Holding totem" 👥 2 crew on floor
-  🔗 Open floor radar: https://marcelkornblum.github.io/chromafloor/#cf1=...
-  ```
 
 ---
 
-## 🎛️ Field Instrument Architecture
+## 🎛️ Project Structure
 
 ```text
 chromafloor/
-├── index.html            # Instrument UI shell (header, radar card, control stack, modals)
-├── styles.css            # Teenage Engineering / Matte Obsidian stylesheet
+├── index.html            # Super-Simple Sharing UI (room selector, 2D wheel, swatch, 1-click share)
+├── setup.html            # Dedicated Venue & Room Setup Studio (canvas editor, fixture palette)
+├── styles.css            # Obsidian/Daylight design system for both UIs (zero purple/violet)
 ├── favicon.svg           # High-DPI hardware radar SVG icon & PWA asset
 ├── manifest.json         # Standalone PWA web manifest
-├── sw.js                 # Network-first / offline-cache Service Worker
+├── sw.js                 # Service Worker (chromafloor-v3 offline cache)
 ├── .nojekyll             # Bypass Jekyll static processing on GitHub Pages
 ├── README.md             # Project documentation
 └── js/
-    ├── color-engine.js   # Spectral interpolation, 8x8 grid zones, distance/bearing math
+    ├── color-engine.js   # 2D Swirled Colour Wheel, HSL math, 8x8 zones, landmark detection
     ├── url-state.js      # #cf1= encoder, decoder, and chat message builder
-    └── app.js            # Reactive controller, canvas renderer, and gesture handler
+    ├── share-app.js      # Controller for index.html Sharing UI
+    └── setup-app.js      # Controller for setup.html Venue Setup Studio
 ```
 
 ---
 
-## 🚀 Local Development & Preview
+## 🚀 Local Development
 
 Because ChromaFloor is 100% client-side, run any local HTTP server from the project directory:
 
@@ -96,11 +107,11 @@ python3 -m http.server 8080
 npx serve .
 ```
 
-Open `http://localhost:8080` in your mobile or desktop browser.
+Open `http://localhost:8080` for the Sharing UI or `http://localhost:8080/setup.html` for the Venue Setup Studio.
 
 ---
 
-## 🎨 Design System & Aesthetic
+## 🎨 Design System
 
 - **Design Philosophy**: Teenage Engineering / Pocket Operator meets outdoor wayfinding hardware.
 - **Surface Palette**: Matte Obsidian dark surfaces (`#0D0F12`, `#15181D`, `#1D2128`).

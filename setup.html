@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>ChromaFloor — Venue & Room Setup Studio</title>
+  <meta name="description" content="Dedicated venue floorplan and room setup studio. Place Stage, DJ Booth, Bar, Sound Desk, Toilets and share with guests." />
+  <meta name="theme-color" content="#0D0F12" />
+
+  <!-- Favicon & PWA Manifest -->
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="apple-touch-icon" href="./favicon.svg" />
+  <link rel="manifest" href="./manifest.json" />
+
+  <!-- Fonts & Stylesheet -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+  <!-- Venue & Room Setup Studio Container (max-width: 1120px) -->
+  <div class="setup-shell">
+
+    <!-- Header (.setup-header) -->
+    <header class="setup-header">
+      <div class="setup-header-left">
+        <a href="./" class="brand-link" aria-label="ChromaFloor Home">
+          <div class="brand-mark">
+            <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect width="32" height="32" rx="8" fill="#15181D" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
+              <circle cx="16" cy="16" r="10" stroke="url(#setupBrandGrad)" stroke-width="3" />
+              <circle cx="16" cy="16" r="3.5" fill="#F59E0B" />
+              <defs>
+                <linearGradient id="setupBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#EF4444" />
+                  <stop offset="25%" stop-color="#F59E0B" />
+                  <stop offset="50%" stop-color="#10B981" />
+                  <stop offset="75%" stop-color="#06B6D4" />
+                  <stop offset="100%" stop-color="#EC4899" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="brand-title">ChromaFloor</span>
+        </a>
+
+        <span class="badge-tech">VENUE SETUP</span>
+
+        <input id="setup-event-name" type="text" class="field-input setup-event-input" value="My Event" maxlength="36" placeholder="Venue or Event Name" aria-label="Venue or Event Name" />
+      </div>
+
+      <div class="setup-header-right">
+        <button id="btn-copy-guest-link" type="button" class="btn-header-tool" title="Copy shareable link with your venue configuration">🔗 Copy Guest Link</button>
+        <a id="link-open-sharing" href="./" class="btn-primary-amber btn-open-sharing" title="Open the simple crowd sharing UI">Open Sharing UI →</a>
+        <button id="btn-theme-toggle" type="button" class="btn-theme-toggle" aria-label="Toggle theme">☀️</button>
+      </div>
+    </header>
+
+    <!-- Room Selector & Add Bar -->
+    <div class="setup-room-bar">
+      <div id="setup-room-tabs" class="room-tabs" role="tablist" aria-label="Venue Rooms"></div>
+      <button id="btn-add-room" type="button" class="btn-add-room" title="Add a new room or stage">+ Add Room</button>
+    </div>
+
+    <!-- 2-Column Main Studio (.setup-main) -->
+    <main class="setup-main">
+
+      <!-- LEFT COLUMN: Interactive Floorplan Placement Canvas -->
+      <section class="setup-canvas-card" aria-label="Interactive Floorplan Placement">
+        <!-- Top Control Bar -->
+        <div class="setup-canvas-top-bar">
+          <div class="orientation-box">
+            <span class="stage-dir-dot"></span>
+            <span id="setup-orientation-label">FACING STAGE ↑</span>
+          </div>
+
+          <div class="setup-canvas-controls">
+            <label class="checkbox-row setup-snap-label">
+              <input id="chk-setup-snap" type="checkbox" class="styled-checkbox" />
+              <span>Snap</span>
+            </label>
+            <button id="btn-setup-grid" type="button" class="map-action-btn active" title="Toggle A1-H8 grid guides">Grid A1-H8</button>
+            <button id="btn-setup-flip" type="button" class="map-action-btn" title="Flip view 180° perspective">🔄 Flip 180°</button>
+          </div>
+        </div>
+
+        <!-- Square 1:1 Viewport -->
+        <div id="setup-map-viewport" class="map-viewport layout-editing" tabindex="0" role="application" aria-label="Venue floorplan placement canvas">
+          <canvas id="setup-floor-canvas" width="800" height="800"></canvas>
+          <div id="setup-map-overlay" class="map-overlay"></div>
+        </div>
+
+        <!-- Bottom Status Bar -->
+        <div class="setup-canvas-bottom-bar">
+          <span class="setup-drag-hint">Drag any placed fixture to reposition</span>
+          <span id="setup-dimensions-label" class="setup-dim-badge">40M × 50M</span>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Room Settings & Fixture Palette -->
+      <aside class="setup-sidebar" aria-label="Room Settings and Fixture Palette">
+
+        <!-- 1. Room Properties Card -->
+        <div class="panel-card room-settings-card">
+          <div class="card-section-title">ROOM PROPERTIES</div>
+
+          <div class="form-group">
+            <label for="editor-room-name" class="field-label">ROOM OR STAGE NAME</label>
+            <input id="editor-room-name" type="text" class="field-input" maxlength="32" placeholder="e.g. Main Room, Warehouse B" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="editor-room-width" class="field-label">WIDTH (METERS)</label>
+              <input id="editor-room-width" type="number" class="field-input" min="10" max="500" value="40" />
+            </div>
+            <div class="form-group">
+              <label for="editor-room-depth" class="field-label">DEPTH (METERS)</label>
+              <input id="editor-room-depth" type="number" class="field-input" min="10" max="500" value="50" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editor-room-palette" class="field-label">2D COLOUR MAP PATTERN</label>
+            <select id="editor-room-palette" class="field-select">
+              <option value="wheel">Swirled Colour Wheel (Recommended)</option>
+              <option value="polar">Classic Radial Wheel</option>
+              <option value="prism">2D Diagonal Prism Wave</option>
+            </select>
+          </div>
+
+          <div class="room-action-row">
+            <button id="btn-clear-landmarks" type="button" class="chip-btn" title="Remove all fixtures from this floor">Clear Floor</button>
+            <button id="btn-delete-room" type="button" class="chip-btn chip-danger" title="Delete active room">Delete Room</button>
+          </div>
+        </div>
+
+        <!-- 2. Place Venue Fixtures Card -->
+        <div class="panel-card fixture-palette-card">
+          <div class="card-section-title">PLACE VENUE FIXTURES</div>
+          <div id="editor-mode-hint" class="editor-mode-hint">Click a fixture below then click the floor to place it — or drag existing items on the map:</div>
+
+          <div id="fixture-palette" class="fixture-palette-grid">
+            <button type="button" class="fixture-chip" data-fixture-type="stage">🎸 Stage</button>
+            <button type="button" class="fixture-chip" data-fixture-type="dj">🎧 DJ Booth</button>
+            <button type="button" class="fixture-chip" data-fixture-type="bar">🍸 Bar</button>
+            <button type="button" class="fixture-chip" data-fixture-type="booth">🎛️ Sound Desk</button>
+            <button type="button" class="fixture-chip" data-fixture-type="speaker">🔊 Speaker</button>
+            <button type="button" class="fixture-chip" data-fixture-type="entrance">🚪 Entrance</button>
+            <button type="button" class="fixture-chip" data-fixture-type="wc">🚻 Toilets</button>
+            <button type="button" class="fixture-chip" data-fixture-type="water">💧 Water</button>
+            <button type="button" class="fixture-chip" data-fixture-type="cloak">🧥 Cloakroom</button>
+            <button type="button" class="fixture-chip" data-fixture-type="chill">🌿 Chill / VIP</button>
+            <button type="button" class="fixture-chip" data-fixture-type="pillar">🏛️ Pillar</button>
+            <button type="button" class="fixture-chip" data-fixture-type="custom">🏷️ Custom...</button>
+          </div>
+
+          <!-- Selected Fixture Inspector Bar -->
+          <div id="selected-fixture-bar" class="selected-fixture-bar hidden">
+            <span id="selected-fixture-icon" class="selected-fixture-icon">🎸</span>
+            <input id="selected-fixture-name" type="text" class="field-input selected-fixture-name-input" maxlength="28" placeholder="Fixture label" aria-label="Fixture Label" />
+            <select id="selected-fixture-type" class="field-select selected-fixture-type-select" aria-label="Fixture Type">
+              <option value="stage">Stage</option>
+              <option value="dj">DJ Booth</option>
+              <option value="bar">Bar</option>
+              <option value="booth">Sound Desk</option>
+              <option value="speaker">Speaker</option>
+              <option value="entrance">Entrance</option>
+              <option value="wc">Toilets</option>
+              <option value="water">Water</option>
+              <option value="cloak">Cloakroom</option>
+              <option value="chill">Chill / VIP</option>
+              <option value="pillar">Pillar</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <span id="selected-fixture-pos" class="selected-fixture-pos">Zone D4</span>
+            <button id="btn-delete-fixture" type="button" class="chip-btn chip-danger" title="Remove selected fixture">✕</button>
+          </div>
+        </div>
+
+      </aside>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="setup-footer">
+      <span>ChromaFloor Venue Studio</span>
+      <span class="footer-sep">·</span>
+      <span>All changes saved locally &amp; synced via #cf1=</span>
+      <span class="footer-sep">·</span>
+      <a href="./" class="footer-link">Return to Sharing UI</a>
+    </footer>
+
+  </div>
+
+  <!-- Add Custom Room Modal Dialog -->
+  <div id="add-room-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Add Stage or Room">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Stage or Tent</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="new-room-name" class="field-label">ROOM OR STAGE NAME</label>
+          <input id="new-room-name" type="text" class="field-input" placeholder="e.g. Forest Clearing, Bass Dome" maxlength="32" />
+        </div>
+
+        <div class="modal-grid-2">
+          <div class="form-group">
+            <label for="new-room-width" class="field-label">WIDTH (METERS)</label>
+            <input id="new-room-width" type="number" class="field-input" value="40" min="10" max="500" />
+          </div>
+          <div class="form-group">
+            <label for="new-room-depth" class="field-label">DEPTH (METERS)</label>
+            <input id="new-room-depth" type="number" class="field-input" value="50" min="10" max="500" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="new-room-template" class="field-label">FIXTURE TEMPLATE</label>
+          <select id="new-room-template" class="field-select">
+            <option value="blank">Blank Floor (Place Stage, Bar &amp; Entrance yourself)</option>
+            <option value="club">Club / Gig Venue (Stage, DJ, Bar, Toilets, Entrance)</option>
+            <option value="festival">Festival Stage (Stage, L/R Stacks, Sound Desk, Bar, Water, Entrance)</option>
+            <option value="boiler">360° Center Booth (Center DJ Booth, 2 Bars, Chill, Entrance)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="new-room-palette" class="field-label">COLOUR MAP PATTERN</label>
+          <select id="new-room-palette" class="field-select">
+            <option value="wheel">Swirled Colour Wheel (Recommended)</option>
+            <option value="polar">Classic Radial Wheel</option>
+            <option value="prism">2D Diagonal Prism Wave</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-room" type="button" class="btn-modal-secondary">Cancel</button>
+        <button id="btn-save-room" type="button" class="btn-modal-primary">Create Stage</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Application Logic (Strict relative paths) -->
+  <script src="./js/color-engine.js"></script>
+  <script src="./js/url-state.js"></script>
+  <script src="./js/setup-app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .then((reg) => console.log('[ChromaFloor] Service worker registered with scope:', reg.scope))
+          .catch((err) => console.warn('[ChromaFloor] Service worker registration error:', err));
+      });
+    }
+  </script>
+
+</body>
+</html>

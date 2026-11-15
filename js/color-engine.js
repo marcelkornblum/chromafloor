@@ -1,6 +1,6 @@
 /**
  * ChromaFloor - 2D Color-Field Positioning Engine
- * Maps stage coordinates (0..1, 0..1) to human-distinguishable color zones,
+ * Maps stage coordinates (0..1, 0..1) to human-distinguishable 2D color zones,
  * landmarks, distances, and walking directions.
  */
 (function(root, factory) {
@@ -12,35 +12,6 @@
 })(typeof self !== 'undefined' ? self : this, function() {
   'use strict';
 
-  // 11 Hue anchor stops across floor width (X: 0.0 -> 1.0)
-  // Perceptually spaced so spectral transitions (Red -> Amber -> Lime -> Cyan -> Azure -> Cobalt -> Violet -> Rose) are distinct
-  const HUE_STOPS = [
-    { x: 0.00, h: 0 },
-    { x: 0.12, h: 24 },
-    { x: 0.23, h: 48 },
-    { x: 0.35, h: 92 },
-    { x: 0.47, h: 152 },
-    { x: 0.58, h: 188 },
-    { x: 0.68, h: 206 },
-    { x: 0.78, h: 224 },
-    { x: 0.89, h: 262 },
-    { x: 0.97, h: 322 },
-    { x: 1.00, h: 330 }
-  ];
-
-  const HUE_WORDS = [
-    'Crimson', // 0
-    'Coral',   // 1
-    'Amber',   // 2
-    'Lime',    // 3
-    'Mint',    // 4
-    'Cyan',    // 5
-    'Azure',   // 6
-    'Cobalt',  // 7
-    'Violet',  // 8
-    'Rose'     // 9
-  ];
-
   // 8 Columns (Left to Right): A -> H
   const ZONE_COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
@@ -50,6 +21,7 @@
       id: 'main',
       name: 'Main Room',
       shape: 'stage',
+      palette: 'wheel',
       widthMeters: 40,
       depthMeters: 50,
       landmarks: [
@@ -88,6 +60,7 @@
     const widthMeters = Number(opt.widthMeters) || 40;
     const depthMeters = Number(opt.depthMeters) || 50;
     const shape = opt.shape || 'stage';
+    const palette = opt.palette || 'wheel';
 
     let landmarks = [];
     switch (templateKey) {
@@ -134,6 +107,7 @@
       widthMeters,
       depthMeters,
       shape,
+      palette,
       landmarks
     };
   }
@@ -157,46 +131,6 @@
       y: 0,
       hasStage: false,
       name: null
-    };
-  }
-
-  /**
-   * Interpolate hue degrees [0..360] across floor width x [0..1]
-   */
-  function interpolateHue(x) {
-    const cx = Math.max(0, Math.min(1, Number.isFinite(Number(x)) ? Number(x) : 0));
-    if (cx <= HUE_STOPS[0].x) return HUE_STOPS[0].h;
-    const last = HUE_STOPS[HUE_STOPS.length - 1];
-    if (cx >= last.x) return last.h;
-
-    for (let i = 0; i < HUE_STOPS.length - 1; i++) {
-      const s0 = HUE_STOPS[i];
-      const s1 = HUE_STOPS[i + 1];
-      if (cx >= s0.x && cx <= s1.x) {
-        const t = (cx - s0.x) / (s1.x - s0.x);
-        return s0.h + t * (s1.h - s0.h);
-      }
-    }
-    return 0;
-  }
-
-  /**
-   * Calculate Saturation and Lightness percentages from depth y [0..1]
-   * y=0 is Front / Stage (brighter, lighter), y=1 is Back / Entrance (deeper, darker)
-   */
-  function getSaturationAndLightness(y) {
-    const cy = Math.max(0, Math.min(1, Number.isFinite(Number(y)) ? Number(y) : 0));
-    if (cy <= 0.5) {
-      const t = cy / 0.5;
-      return {
-        s: 92 + t * 4,           // 92% -> 96%
-        l: 80 + t * (53 - 80)    // 80% (light pastel / ice) -> 53% (vivid core)
-      };
-    }
-    const t = (cy - 0.5) / 0.5;
-    return {
-      s: 96 + t * (88 - 96),     // 96% -> 88%
-      l: 53 + t * (26 - 53)      // 53% -> 26% (deep / midnight)
     };
   }
 
@@ -248,14 +182,125 @@
   }
 
   /**
-   * Comprehensive spot color resolution for any coordinate (x, y)
+   * Computes HSL tuple (h, s, l) for coordinate (x, y) given a palette mode.
+   * Palettes:
+   *  - 'wheel' (default): Archimedean spiral + smooth glowing Pearl core
+   *  - 'polar': Classic radial color wheel + glowing Pearl core
+   *  - 'prism': 2D diagonal chromatic wave field
    */
-  function getSpotColor(x, y) {
+  function calculateHsl(x, y, palette) {
+    const cx = Math.max(0, Math.min(1, Number.isFinite(Number(x)) ? Number(x) : 0));
+    const cy = Math.max(0, Math.min(1, Number.isFinite(Number(y)) ? Number(y) : 0));
+    const pal = palette || 'wheel';
+
+    if (pal === 'prism') {
+      const h = (cx * 250 + cy * 155 + 28 * Math.sin(cx * Math.PI * 2) * Math.cos(cy * Math.PI * 2) + 360) % 360;
+      const s = Math.max(0, Math.min(100, 90 + 6 * Math.sin((cx + cy) * Math.PI)));
+      const rawL = 68 - 28 * cy + 10 * Math.cos(cx * Math.PI * 2);
+      const l = Math.max(32, Math.min(78, rawL));
+      return { h: (h + 360) % 360, s, l };
+    }
+
+    // Radial calculation for 'wheel' and 'polar'
+    const dx = (cx - 0.5) * 2;
+    const dy = (cy - 0.5) * 2;
+    const thetaRad = Math.atan2(dy, dx);
+    const thetaDeg = thetaRad * (180 / Math.PI); // -180 .. 180
+    const r = Math.hypot(dx, dy); // 0 at center, 1 at mid-walls, ~1.414 at corners
+
+    let h = 0;
+    if (pal === 'polar') {
+      h = (thetaDeg + 90 + 360) % 360;
+    } else {
+      // Default: 'wheel' Archimedean Spiral
+      h = (thetaDeg + 90 + r * 115 + 720) % 360;
+    }
+
+    // Smooth Singularity-Free Center (smoothstep)
+    const tCore = Math.min(1, r / 0.20);
+    const smoothCore = tCore * tCore * (3 - 2 * tCore);
+
+    // Saturation: 8% luminous Pearl at center -> 96% vivid
+    const s = 8 + 88 * smoothCore;
+
+    // Lightness: 95% glowing Pearl at center -> 38% rich jewel perimeter
+    const rNorm = Math.min(1, Math.pow(r / 1.28, 0.88));
+    const l = Math.max(30, Math.min(96, 95 - 57 * rNorm));
+
+    return {
+      h: (h + 360) % 360,
+      s,
+      l
+    };
+  }
+
+  /**
+   * Determines color naming from HSL
+   */
+  function getColorNameFromHsl(h, s, l) {
+    if (s < 16) {
+      return 'Pearl White';
+    }
+
+    const normH = ((h % 360) + 360) % 360;
+
+    let hueWord = 'Rose';
+    if (normH >= 346 || normH < 13) {
+      hueWord = 'Crimson';
+    } else if (normH < 28) {
+      hueWord = 'Coral';
+    } else if (normH < 44) {
+      hueWord = 'Tangerine';
+    } else if (normH < 62) {
+      hueWord = 'Gold';
+    } else if (normH < 88) {
+      hueWord = 'Lime';
+    } else if (normH < 130) {
+      hueWord = 'Emerald';
+    } else if (normH < 162) {
+      hueWord = 'Mint';
+    } else if (normH < 188) {
+      hueWord = 'Turquoise';
+    } else if (normH < 210) {
+      hueWord = 'Cyan';
+    } else if (normH < 235) {
+      hueWord = 'Azure';
+    } else if (normH < 262) {
+      hueWord = 'Cobalt';
+    } else if (normH < 288) {
+      hueWord = 'Indigo';
+    } else if (normH < 316) {
+      hueWord = 'Orchid';
+    } else {
+      hueWord = 'Rose';
+    }
+
+    let toneWord = 'Rich';
+    if (s < 42) {
+      toneWord = 'Pastel';
+    } else if (l >= 74) {
+      toneWord = 'Ice';
+    } else if (l >= 60) {
+      toneWord = 'Bright';
+    } else if (l >= 46) {
+      toneWord = 'Vivid';
+    } else if (l >= 35) {
+      toneWord = 'Rich';
+    } else {
+      toneWord = 'Deep';
+    }
+
+    return `${toneWord} ${hueWord}`;
+  }
+
+  /**
+   * Comprehensive spot color resolution for any coordinate (x, y) with chosen palette
+   */
+  function getSpotColor(x, y, palette = 'wheel') {
     const cx = Math.max(0, Math.min(1, Number.isFinite(Number(x)) ? Number(x) : 0));
     const cy = Math.max(0, Math.min(1, Number.isFinite(Number(y)) ? Number(y) : 0));
 
-    const h = interpolateHue(cx);
-    const { s, l } = getSaturationAndLightness(cy);
+    const { h, s, l } = calculateHsl(cx, cy, palette);
     const rgb = hslToRgb(h, s, l);
     const hex = rgbToHex(rgb);
     const textColor = getTextColor(rgb);
@@ -267,16 +312,8 @@
     const rowNumber = rowIdx;
     const zoneCode = `${colLetter}${rowNumber}`;
 
-    // Tone descriptor based on depth
-    let toneWord = 'Midnight';
-    if (cy < 0.22) toneWord = 'Ice';
-    else if (cy < 0.40) toneWord = 'Bright';
-    else if (cy < 0.62) toneWord = 'Vivid';
-    else if (cy < 0.80) toneWord = 'Deep';
-
-    // Hue descriptor based on lateral width
-    const hueIdx = Math.min(9, Math.max(0, Math.floor(cx * 10)));
-    const colorName = `${toneWord} ${HUE_WORDS[hueIdx]}`;
+    // Color name derived accurately from HSL
+    const colorName = getColorNameFromHsl(h, s, l);
 
     // Depth label
     let depthLabel = 'Back';
@@ -309,7 +346,8 @@
       colorName,
       sideLabel,
       depthLabel,
-      fullPositionLabel
+      fullPositionLabel,
+      palette
     };
   }
 
@@ -360,6 +398,7 @@
 
     const widthM = (room && room.widthMeters) || 40;
     const depthM = (room && room.depthMeters) || 50;
+    const palette = (room && room.palette) || 'wheel';
 
     const dxMeters = (actualTo.x - actualFrom.x) * widthM;
     const dyMeters = (actualTo.y - actualFrom.y) * depthM;
@@ -398,8 +437,8 @@
       ? 'At your spot'
       : `${meters}m (${steps} steps) ${move}`;
 
-    const fromColor = getSpotColor(actualFrom.x, actualFrom.y);
-    const toColor = getSpotColor(actualTo.x, actualTo.y);
+    const fromColor = getSpotColor(actualFrom.x, actualFrom.y, palette);
+    const toColor = getSpotColor(actualTo.x, actualTo.y, palette);
     const nearest = getNearestLandmark(actualTo.x, actualTo.y, room);
 
     return {
@@ -415,9 +454,9 @@
 
   /**
    * Generates offscreen canvas with smooth 2D gradient floor,
-   * handling stage perspective flip and optional dome vignette.
+   * handling stage perspective flip, palette selection, and optional dome vignette.
    */
-  function createFloorBackground(width, height, flipped, shape) {
+  function createFloorBackground(width, height, flipped, shape, palette = 'wheel') {
     const w = Math.max(16, Math.floor(width || 292));
     const h = Math.max(16, Math.floor(height || 272));
 
@@ -435,11 +474,10 @@
 
     for (let py = 0; py < h; py++) {
       const normY = Math.max(0, Math.min(1, flipped ? (1 - py / h) : (py / h)));
-      const { s, l } = getSaturationAndLightness(normY);
 
       for (let px = 0; px < w; px++) {
         const normX = Math.max(0, Math.min(1, flipped ? (1 - px / w) : (px / w)));
-        const hue = interpolateHue(normX);
+        const { h: hue, s, l } = calculateHsl(normX, normY, palette);
         let [r, g, b] = hslToRgb(hue, s, l);
 
         if (isDome) {
@@ -467,22 +505,87 @@
     return off;
   }
 
+  /**
+   * Helper to draw crisp, subtle polar depth rings and optional grid lines on floor canvas overlay
+   */
+  function drawWheelGuides(ctx, w, h, opts = {}) {
+    if (!ctx) return;
+    const { showGrid = true, palette = 'wheel' } = opts;
+
+    ctx.save();
+
+    // Polar Depth Rings (3 subtle rings around center: 20%, 45%, 70% of radius)
+    if (palette === 'wheel' || palette === 'polar') {
+      const cx = w * 0.5;
+      const cy = h * 0.5;
+      const minDim = Math.min(w, h);
+      const radii = [minDim * 0.15, minDim * 0.32, minDim * 0.48];
+
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+      ctx.setLineDash([4, 6]);
+
+      for (const r of radii) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Center crosshair
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // A1 - H8 Grid Lines
+    if (showGrid) {
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.setLineDash([]);
+
+      for (let i = 1; i < 8; i++) {
+        // Vertical lines
+        const gx = Math.round((i / 8) * w);
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, h);
+        ctx.stroke();
+
+        // Horizontal lines
+        const gy = Math.round((i / 8) * h);
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(w, gy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
   return {
-    HUE_STOPS,
-    HUE_WORDS,
     ZONE_COLUMNS,
     DEFAULT_ROOMS,
     FIXTURE_TYPES,
     buildRoomFromTemplate,
     getStageOrigin,
-    interpolateHue,
-    getSaturationAndLightness,
+    calculateHsl,
+    getColorNameFromHsl,
     hslToRgb,
     rgbToHex,
     getTextColor,
     getSpotColor,
     getNearestLandmark,
     getWalkingDirections,
-    createFloorBackground
+    createFloorBackground,
+    drawWheelGuides
   };
 });
