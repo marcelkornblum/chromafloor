@@ -29,7 +29,8 @@
     flipped: false,
     showGrid: true,
     snapToGrid: false,
-    armedFixtureType: null,
+    armedEmoji: null,
+    armedType: null,
     selectedFixtureId: null
   };
 
@@ -75,13 +76,24 @@
     btnClearLandmarks: getEl('btn-clear-landmarks', 'btn-editor-clear-landmarks'),
     btnDeleteRoom: getEl('btn-delete-room', 'btn-editor-delete-room'),
 
-    // Fixture Palette & Inspector
+    // Stage Required Banner & Actions
+    stageRequiredBanner: getEl('stage-required-banner'),
+    btnPlaceStage: getEl('btn-place-stage'),
+
+    // Fixture & Emoji Palette
     fixturePalette: getEl('fixture-palette'),
+    customEmojiInput: getEl('custom-emoji-input'),
+    customLabelInput: getEl('custom-label-input'),
     editorModeHint: getEl('editor-mode-hint'),
+
+    // Selected Fixture Inspector
     selectedFixtureBar: getEl('selected-fixture-bar'),
-    selectedFixtureIcon: getEl('selected-fixture-icon'),
+    stageInspectorView: getEl('stage-inspector-view'),
+    emojiInspectorView: getEl('emoji-inspector-view'),
+    selectedStageName: getEl('selected-stage-name'),
+    selectedStagePos: getEl('selected-stage-pos'),
+    selectedFixtureEmoji: getEl('selected-fixture-emoji'),
     selectedFixtureName: getEl('selected-fixture-name'),
-    selectedFixtureType: getEl('selected-fixture-type'),
     selectedFixturePos: getEl('selected-fixture-pos'),
     btnDeleteFixture: getEl('btn-delete-fixture'),
 
@@ -303,6 +315,20 @@
   }
 
   /**
+   * Syncs stage banner visibility based on active room's landmarks
+   */
+  function syncStageBanner() {
+    if (!els.stageRequiredBanner) return;
+    const room = getActiveRoom();
+    const hasStage = Boolean(room && Array.isArray(room.landmarks) && room.landmarks.some(l => l.type === 'stage'));
+    if (hasStage) {
+      els.stageRequiredBanner.classList.add('hidden');
+    } else {
+      els.stageRequiredBanner.classList.remove('hidden');
+    }
+  }
+
+  /**
    * Updates fixture inspector bar
    */
   function syncSelectedFixtureInspector() {
@@ -317,13 +343,24 @@
     }
 
     els.selectedFixtureBar.classList.remove('hidden');
-    if (els.selectedFixtureIcon) els.selectedFixtureIcon.textContent = selected.icon || '📍';
-    if (els.selectedFixtureName) els.selectedFixtureName.value = selected.name || '';
-    if (els.selectedFixtureType) els.selectedFixtureType.value = selected.type || 'custom';
+    const isStage = (selected.type === 'stage');
 
     const colLetter = ColorEngine.ZONE_COLUMNS[Math.min(7, Math.floor(selected.x * 8))];
     const rowNumber = Math.min(8, Math.floor(selected.y * 8) + 1);
-    if (els.selectedFixturePos) els.selectedFixturePos.textContent = `Zone ${colLetter}${rowNumber}`;
+    const posText = `Zone ${colLetter}${rowNumber}`;
+
+    if (isStage) {
+      if (els.stageInspectorView) els.stageInspectorView.classList.remove('hidden');
+      if (els.emojiInspectorView) els.emojiInspectorView.classList.add('hidden');
+      if (els.selectedStageName) els.selectedStageName.value = selected.name || 'Stage';
+      if (els.selectedStagePos) els.selectedStagePos.textContent = posText;
+    } else {
+      if (els.stageInspectorView) els.stageInspectorView.classList.add('hidden');
+      if (els.emojiInspectorView) els.emojiInspectorView.classList.remove('hidden');
+      if (els.selectedFixtureEmoji) els.selectedFixtureEmoji.value = selected.icon || '📍';
+      if (els.selectedFixtureName) els.selectedFixtureName.value = selected.name || '';
+      if (els.selectedFixturePos) els.selectedFixturePos.textContent = posText;
+    }
   }
 
   /**
@@ -345,23 +382,27 @@
         : Math.max(0.07, Math.min(0.93, rawDispX));
       const dispY = Math.max(0.065, Math.min(0.935, rawDispY));
       const isSelected = lm.id === state.selectedFixtureId;
+      const hasLabel = Boolean(lm.name && lm.name.trim().length > 0);
+      const isPureEmoji = !isStage && !hasLabel;
 
       const pill = document.createElement('div');
-      pill.className = `landmark-pill editable landmark-${lm.type || 'custom'}${isSelected ? ' selected-fixture' : ''}`;
+      pill.className = `landmark-pill editable landmark-${lm.type || 'custom'}${isSelected ? ' selected-fixture' : ''}${isPureEmoji ? ' pure-emoji' : ''}`;
       pill.style.left = `${dispX * 100}%`;
       pill.style.top = `${dispY * 100}%`;
       pill.dataset.fixtureId = lm.id;
       pill.dataset.type = lm.type || 'custom';
-      pill.innerHTML = `
-        <span class="lm-emoji">${lm.icon || '📍'}</span>
-        <span class="lm-text">${lm.name}</span>
-      `;
+
+      const emojiHtml = `<span class="lm-emoji${isPureEmoji ? ' standalone' : ''}">${lm.icon || (isStage ? '🎸' : '📍')}</span>`;
+      const labelHtml = (isStage || hasLabel) ? `<span class="lm-text">${lm.name || (isStage ? 'STAGE' : '')}</span>` : '';
+      pill.innerHTML = `${emojiHtml}${labelHtml}`;
 
       // 60fps Drag-and-drop handler for placed landmarks
       setupLandmarkDragging(pill, lm);
 
       els.setupMapOverlay.appendChild(pill);
     });
+
+    syncStageBanner();
   }
 
   /**
@@ -447,7 +488,7 @@
   }
 
   /**
-   * Interactive floor tap to place armed fixture
+   * Interactive floor tap to place armed emoji marker
    */
   function setupViewportInteractions() {
     if (!els.setupMapViewport) return;
@@ -457,7 +498,7 @@
       if (e.target.closest('.landmark-pill') || e.target.closest('button')) return;
 
       const room = getActiveRoom();
-      if (!state.armedFixtureType) {
+      if (!state.armedEmoji) {
         // Deselect current fixture if any
         if (state.selectedFixtureId) {
           state.selectedFixtureId = null;
@@ -467,7 +508,7 @@
         return;
       }
 
-      // Place armed fixture
+      // Place armed emoji marker
       const rect = els.setupMapViewport.getBoundingClientRect();
       let normX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       let normY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
@@ -482,13 +523,15 @@
         normY = Math.round(normY * 8) / 8;
       }
 
-      const type = state.armedFixtureType;
-      const fixtureDef = ColorEngine.FIXTURE_TYPES[type] || { defaultName: 'Fixture', icon: '📍' };
+      const emoji = state.armedEmoji || '📍';
+      const labelText = (els.customLabelInput && els.customLabelInput.value.trim()) || '';
+      const isStage = (state.armedType === 'stage');
+
       const newFixture = {
         id: `lm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        name: fixtureDef.defaultName,
-        type,
-        icon: fixtureDef.icon,
+        name: isStage ? (labelText || 'Stage') : labelText,
+        type: isStage ? 'stage' : 'custom',
+        icon: emoji,
         x: normX,
         y: normY
       };
@@ -496,128 +539,206 @@
       if (!Array.isArray(room.landmarks)) room.landmarks = [];
       room.landmarks.push(newFixture);
       state.selectedFixtureId = newFixture.id;
-      state.armedFixtureType = null; // disarm
+      state.armedEmoji = null; // disarm
+      state.armedType = null;
 
-      // Clear active chip style
+      // Clear active chip styles
       document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('armed'));
       if (els.editorModeHint) {
-        els.editorModeHint.textContent = 'Drag any placed item to reposition — or tap a fixture below:';
+        els.editorModeHint.textContent = 'Drag any placed item to reposition — or tap an emoji below:';
       }
 
       persist();
       renderOverlay();
       syncSelectedFixtureInspector();
       updateOrientationLabel();
-      showToast(`Placed ${newFixture.name}`);
+      showToast(`Placed ${newFixture.icon} ${newFixture.name}`.trim());
     });
   }
 
   /**
-   * Fixture catalog chips
+   * Curated quick-tap emoji palette & custom emoji/label inputs
    */
   function setupFixturePalette() {
-    if (!els.fixturePalette) return;
-
-    els.fixturePalette.addEventListener('click', (e) => {
-      const chip = e.target.closest('.fixture-chip');
-      if (!chip) return;
-      const type = chip.dataset.fixtureType;
-      if (!type) return;
-
-      if (state.armedFixtureType === type) {
-        // Toggle disarm
-        state.armedFixtureType = null;
-        chip.classList.remove('armed');
-        if (els.editorModeHint) {
-          els.editorModeHint.textContent = 'Tap a fixture below then tap the floor to place it — or drag placed items:';
+    // 1. Prominent Place Stage Block button
+    if (els.btnPlaceStage) {
+      els.btnPlaceStage.addEventListener('click', () => {
+        const room = getActiveRoom();
+        if (!Array.isArray(room.landmarks)) room.landmarks = [];
+        const existingStage = room.landmarks.find(l => l.type === 'stage');
+        if (existingStage) {
+          state.selectedFixtureId = existingStage.id;
+          renderOverlay();
+          syncSelectedFixtureInspector();
+          showToast('Stage block is already placed in this room');
+          return;
         }
-      } else {
-        // Arm
-        state.armedFixtureType = type;
+
+        const newStage = {
+          id: `lm-stage-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          name: 'Stage',
+          type: 'stage',
+          icon: '🎸',
+          x: 0.50,
+          y: 0.08
+        };
+        room.landmarks.push(newStage);
+        state.selectedFixtureId = newStage.id;
+
+        persist();
+        renderOverlay();
+        syncSelectedFixtureInspector();
+        updateOrientationLabel();
+        showToast('Placed required Stage block');
+      });
+    }
+
+    // 2. Curated quick emoji buttons
+    if (els.fixturePalette) {
+      els.fixturePalette.addEventListener('click', (e) => {
+        const chip = e.target.closest('.fixture-chip');
+        if (!chip) return;
+        const emoji = chip.dataset.emoji;
+        if (!emoji) return;
+
+        if (state.armedEmoji === emoji) {
+          // Disarm
+          state.armedEmoji = null;
+          state.armedType = null;
+          chip.classList.remove('armed');
+          if (els.editorModeHint) {
+            els.editorModeHint.textContent = 'Tap an emoji below then tap the floor — or enter custom emoji:';
+          }
+        } else {
+          // Arm
+          state.armedEmoji = emoji;
+          state.armedType = 'custom';
+          document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('armed'));
+          chip.classList.add('armed');
+          if (els.customEmojiInput) {
+            els.customEmojiInput.value = emoji;
+          }
+          if (els.editorModeHint) {
+            els.editorModeHint.textContent = `🎯 Tap anywhere on the floor to place ${emoji}:`;
+          }
+        }
+      });
+
+      // Double-click drops marker near floor center
+      els.fixturePalette.addEventListener('dblclick', (e) => {
+        const chip = e.target.closest('.fixture-chip');
+        if (!chip) return;
+        const emoji = chip.dataset.emoji;
+        if (!emoji) return;
+
+        const room = getActiveRoom();
+        const labelText = (els.customLabelInput && els.customLabelInput.value.trim()) || '';
+        const offset = (Math.random() - 0.5) * 0.16;
+        const newFixture = {
+          id: `lm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          name: labelText,
+          type: 'custom',
+          icon: emoji,
+          x: Math.max(0.08, Math.min(0.92, 0.50 + offset)),
+          y: Math.max(0.08, Math.min(0.92, 0.50 + offset))
+        };
+
+        if (!Array.isArray(room.landmarks)) room.landmarks = [];
+        room.landmarks.push(newFixture);
+        state.selectedFixtureId = newFixture.id;
+        state.armedEmoji = null;
+        state.armedType = null;
         document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('armed'));
-        chip.classList.add('armed');
-        const fixtureDef = ColorEngine.FIXTURE_TYPES[type] || { label: type };
-        if (els.editorModeHint) {
-          els.editorModeHint.textContent = `🎯 Tap anywhere on the floor to place ${fixtureDef.label}:`;
+
+        persist();
+        renderOverlay();
+        syncSelectedFixtureInspector();
+        updateOrientationLabel();
+        showToast(`Dropped ${newFixture.icon} ${newFixture.name}`.trim());
+      });
+    }
+
+    // 3. Custom Emoji Input
+    if (els.customEmojiInput) {
+      els.customEmojiInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val) {
+          state.armedEmoji = val;
+          state.armedType = 'custom';
+          document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('armed'));
+          if (els.editorModeHint) {
+            els.editorModeHint.textContent = `🎯 Tap anywhere on the floor to place ${val}:`;
+          }
+        } else {
+          state.armedEmoji = null;
+          state.armedType = null;
         }
-      }
-    });
-
-    // Double-click chip drops near center
-    els.fixturePalette.addEventListener('dblclick', (e) => {
-      const chip = e.target.closest('.fixture-chip');
-      if (!chip) return;
-      const type = chip.dataset.fixtureType;
-      if (!type) return;
-
-      const room = getActiveRoom();
-      const fixtureDef = ColorEngine.FIXTURE_TYPES[type] || { defaultName: 'Fixture', icon: '📍' };
-      const offset = (Math.random() - 0.5) * 0.16;
-      const newFixture = {
-        id: `lm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        name: fixtureDef.defaultName,
-        type,
-        icon: fixtureDef.icon,
-        x: Math.max(0.08, Math.min(0.92, 0.50 + offset)),
-        y: Math.max(0.08, Math.min(0.92, 0.50 + offset))
-      };
-
-      if (!Array.isArray(room.landmarks)) room.landmarks = [];
-      room.landmarks.push(newFixture);
-      state.selectedFixtureId = newFixture.id;
-      state.armedFixtureType = null;
-      document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('armed'));
-
-      persist();
-      renderOverlay();
-      syncSelectedFixtureInspector();
-      updateOrientationLabel();
-      showToast(`Dropped ${newFixture.name} on floor`);
-    });
+      });
+    }
   }
 
   /**
    * Fixture Inspector edit & remove
    */
   function setupInspectorActions() {
+    // Stage Title edit
+    if (els.selectedStageName) {
+      els.selectedStageName.addEventListener('input', (e) => {
+        const room = getActiveRoom();
+        const f = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
+        if (f && f.type === 'stage') {
+          f.name = e.target.value.trim() || 'Stage';
+          renderOverlay();
+          persist();
+          updateOrientationLabel();
+        }
+      });
+    }
+
+    // Emoji Marker Emoji edit
+    if (els.selectedFixtureEmoji) {
+      els.selectedFixtureEmoji.addEventListener('input', (e) => {
+        const room = getActiveRoom();
+        const f = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
+        if (f && f.type !== 'stage') {
+          f.icon = e.target.value.trim() || '📍';
+          renderOverlay();
+          persist();
+        }
+      });
+    }
+
+    // Emoji Marker Label edit (supports empty string for emoji only!)
     if (els.selectedFixtureName) {
       els.selectedFixtureName.addEventListener('input', (e) => {
         const room = getActiveRoom();
         const f = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
-        if (f) {
-          f.name = e.target.value.trim() || 'Landmark';
+        if (f && f.type !== 'stage') {
+          f.name = e.target.value.trim(); // preserves empty string ""!
           renderOverlay();
           persist();
         }
       });
     }
 
-    if (els.selectedFixtureType) {
-      els.selectedFixtureType.addEventListener('change', (e) => {
-        const room = getActiveRoom();
-        const f = (room.landmarks || []).find(l => l.id === state.selectedFixtureId);
-        if (f) {
-          f.type = e.target.value;
-          const def = ColorEngine.FIXTURE_TYPES[f.type] || { icon: '📍' };
-          f.icon = def.icon;
-          if (els.selectedFixtureIcon) els.selectedFixtureIcon.textContent = f.icon;
-          renderOverlay();
-          persist();
-        }
-      });
-    }
-
+    // Delete Fixture action (prevents deleting required Stage block)
     if (els.btnDeleteFixture) {
       els.btnDeleteFixture.addEventListener('click', () => {
         const room = getActiveRoom();
         if (!room.landmarks) return;
+        const target = room.landmarks.find(l => l.id === state.selectedFixtureId);
+        if (target && target.type === 'stage') {
+          showToast('Cannot delete required Stage block');
+          return;
+        }
+
         room.landmarks = room.landmarks.filter(l => l.id !== state.selectedFixtureId);
         state.selectedFixtureId = null;
         renderOverlay();
         syncSelectedFixtureInspector();
         updateOrientationLabel();
         persist();
-        showToast('Removed fixture');
+        showToast('Removed marker');
       });
     }
   }
@@ -665,15 +786,18 @@
 
     if (els.btnClearLandmarks) {
       els.btnClearLandmarks.addEventListener('click', () => {
-        if (!confirm('Remove all fixtures and landmarks from this room?')) return;
+        if (!confirm('Remove all emoji markers from this room? (The Stage block will be kept)')) return;
         const room = getActiveRoom();
-        room.landmarks = [];
+        if (Array.isArray(room.landmarks)) {
+          // Keep stage block, remove all other emoji markers
+          room.landmarks = room.landmarks.filter(l => l.type === 'stage');
+        }
         state.selectedFixtureId = null;
         renderOverlay();
         syncSelectedFixtureInspector();
         updateOrientationLabel();
         persist();
-        showToast('Floor cleared');
+        showToast('Emoji markers cleared (Stage preserved)');
       });
     }
 

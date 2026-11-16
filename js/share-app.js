@@ -666,21 +666,25 @@
       const dispY = Math.max(0.065, Math.min(0.935, rawDispY));
 
       const pill = document.createElement('div');
-      pill.className = `landmark-pill landmark-${lm.type || 'custom'}`;
+      const hasLabel = Boolean(lm.name && lm.name.trim().length > 0);
+      const isPureEmoji = !isStage && !hasLabel;
+      pill.className = `landmark-pill landmark-${lm.type || 'custom'}${isPureEmoji ? ' pure-emoji' : ''}`;
       pill.style.left = `${dispX * 100}%`;
       pill.style.top = `${dispY * 100}%`;
       pill.dataset.type = lm.type || 'custom';
-      pill.innerHTML = `
-        <span class="lm-emoji">${lm.icon || '📍'}</span>
-        <span class="lm-text">${lm.name}</span>
-      `;
+      
+      const emojiHtml = `<span class="lm-emoji${isPureEmoji ? ' standalone' : ''}">${lm.icon || '📍'}</span>`;
+      const labelHtml = (isStage || hasLabel) ? `<span class="lm-text">${lm.name || (isStage ? 'STAGE' : '')}</span>` : '';
+      pill.innerHTML = `${emojiHtml}${labelHtml}`;
+
       // Tapping a landmark gently snaps reticle to it!
       pill.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         state.spot = { x: lm.x, y: lm.y };
         renderOverlay();
         updateSwatch();
-        showToast(`Snapped to ${lm.name}`);
+        const toastName = (lm.name && lm.name.trim()) ? lm.name.trim() : (lm.icon || 'marker');
+        showToast(`Snapped to ${toastName}`);
       });
       els.mapOverlay.appendChild(pill);
     });

@@ -74,11 +74,12 @@
       const lms = Array.isArray(r.landmarks) ? r.landmarks : [];
       const landmarksStr = lms.slice(0, 25).map(lm => {
         const lmId = sanitizeField(lm.id || 'lm');
-        const lmName = sanitizeField(lm.name || 'Landmark');
+        const lmName = sanitizeField(lm.name !== undefined && lm.name !== null ? lm.name : '');
         const lmType = sanitizeField(lm.type || 'custom');
         const lmX = Math.round(Math.max(0, Math.min(1, Number(lm.x) || 0)) * 1000);
         const lmY = Math.round(Math.max(0, Math.min(1, Number(lm.y) || 0)) * 1000);
-        return [lmId, lmName, lmType, lmX, lmY].join('*');
+        const lmIcon = sanitizeField(lm.icon || (lmType === 'stage' ? '🎸' : '📍'));
+        return [lmId, lmName, lmType, lmX, lmY, lmIcon].join('*');
       }).join('~');
 
       return [rId, rName, rWidth, rDepth, rShape, landmarksStr, rPalette].join(':');
@@ -247,7 +248,7 @@
               const lmType = desanitizeField(lf[2]) || 'custom';
               const lmX = Math.max(0, Math.min(1, (parseInt(lf[3], 10) || 0) / 1000));
               const lmY = Math.max(0, Math.min(1, (parseInt(lf[4], 10) || 0) / 1000));
-              const lmIcon = getFixtureIcon(lmType);
+              const lmIcon = (lf[5] && lf[5].trim()) ? desanitizeField(lf[5]) : (lmType === 'stage' ? '🎸' : (getFixtureIcon(lmType) || '📍'));
 
               landmarks.push({
                 id: lmId,

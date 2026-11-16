@@ -136,51 +136,76 @@
           </div>
 
           <div class="room-action-row">
-            <button id="btn-clear-landmarks" type="button" class="chip-btn" title="Remove all fixtures from this floor">Clear Floor</button>
+            <button id="btn-clear-landmarks" type="button" class="chip-btn" title="Remove all emoji markers from this floor (keeps stage)">Clear Markers</button>
             <button id="btn-delete-room" type="button" class="chip-btn chip-danger" title="Delete active room">Delete Room</button>
           </div>
         </div>
 
         <!-- 2. Place Venue Fixtures Card -->
         <div class="panel-card fixture-palette-card">
-          <div class="card-section-title">PLACE VENUE FIXTURES</div>
-          <div id="editor-mode-hint" class="editor-mode-hint">Click a fixture below then click the floor to place it — or drag existing items on the map:</div>
+          <div class="card-section-title">DECORATE ROOM &amp; MARKERS</div>
 
-          <div id="fixture-palette" class="fixture-palette-grid">
-            <button type="button" class="fixture-chip" data-fixture-type="stage">🎸 Stage</button>
-            <button type="button" class="fixture-chip" data-fixture-type="dj">🎧 DJ Booth</button>
-            <button type="button" class="fixture-chip" data-fixture-type="bar">🍸 Bar</button>
-            <button type="button" class="fixture-chip" data-fixture-type="booth">🎛️ Sound Desk</button>
-            <button type="button" class="fixture-chip" data-fixture-type="speaker">🔊 Speaker</button>
-            <button type="button" class="fixture-chip" data-fixture-type="entrance">🚪 Entrance</button>
-            <button type="button" class="fixture-chip" data-fixture-type="wc">🚻 Toilets</button>
-            <button type="button" class="fixture-chip" data-fixture-type="water">💧 Water</button>
-            <button type="button" class="fixture-chip" data-fixture-type="cloak">🧥 Cloakroom</button>
-            <button type="button" class="fixture-chip" data-fixture-type="chill">🌿 Chill / VIP</button>
-            <button type="button" class="fixture-chip" data-fixture-type="pillar">🏛️ Pillar</button>
-            <button type="button" class="fixture-chip" data-fixture-type="custom">🏷️ Custom...</button>
+          <!-- Prominent Place Stage Block Banner (shown when room has no stage) -->
+          <div id="stage-required-banner" class="stage-required-banner hidden">
+            <div class="stage-required-info">
+              <span class="stage-required-icon">🎸</span>
+              <div class="stage-required-text">
+                <strong>Stage Block Missing</strong>
+                <span>Every room requires an architectural stage block</span>
+              </div>
+            </div>
+            <button id="btn-place-stage" type="button" class="btn-place-stage" title="Add required stage block to this room">🎸 Place Stage Block</button>
+          </div>
+
+          <div id="editor-mode-hint" class="editor-mode-hint">Tap any rave emoji below then tap the floor — or enter any custom emoji + optional label:</div>
+
+          <!-- Curated Dancefloor Emojis Grid (useful raver ones first!) -->
+          <div id="fixture-palette" class="fixture-palette-grid emoji-quick-grid">
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🔊" data-label="" title="Speaker Stack">🔊 <span class="chip-label">Speaker</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🚻" data-label="" title="Loos / WC">🚻 <span class="chip-label">Toilets</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🚪" data-label="" title="Exit / Entrance">🚪 <span class="chip-label">Exit</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🍸" data-label="" title="Bar">🍸 <span class="chip-label">Bar</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🍺" data-label="" title="Beer / Drinks">🍺 <span class="chip-label">Drinks</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="💧" data-label="" title="Water Point">💧 <span class="chip-label">Water</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🎛️" data-label="" title="Sound Desk / FOH">🎛️ <span class="chip-label">Sound Desk</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🎧" data-label="" title="DJ Booth">🎧 <span class="chip-label">DJ</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🪜" data-label="" title="Stairs">🪜 <span class="chip-label">Stairs</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🧥" data-label="" title="Cloakroom">🧥 <span class="chip-label">Cloakroom</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🚬" data-label="" title="Smoking Area">🚬 <span class="chip-label">Smoking</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🛋️" data-label="" title="Chill / Seating">🛋️ <span class="chip-label">Chill</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🏛️" data-label="" title="Pillar / Column">🏛️ <span class="chip-label">Pillar</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🚑" data-label="" title="First Aid / Welfare">🚑 <span class="chip-label">First Aid</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🎪" data-label="" title="Tent / Arch">🎪 <span class="chip-label">Tent</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🍔" data-label="" title="Food Stall">🍔 <span class="chip-label">Food</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="👕" data-label="" title="Merch">👕 <span class="chip-label">Merch</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🪩" data-label="" title="Mirrorball / Lights">🪩 <span class="chip-label">Mirrorball</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="🚩" data-label="" title="Totem / Flag">🚩 <span class="chip-label">Totem</span></button>
+            <button type="button" class="fixture-chip emoji-chip" data-emoji="⭐" data-label="" title="Meet Point">⭐ <span class="chip-label">Meet Point</span></button>
+          </div>
+
+          <!-- Free Any-Emoji & Optional Label Bar -->
+          <div class="custom-emoji-bar">
+            <input id="custom-emoji-input" type="text" class="field-input emoji-char-input" placeholder="✨" maxlength="8" aria-label="Choose any emoji" title="Tap to type any emoji from your keyboard" />
+            <input id="custom-label-input" type="text" class="field-input custom-label-input" placeholder="Optional label (leave blank for emoji only)" maxlength="24" aria-label="Optional marker label" />
           </div>
 
           <!-- Selected Fixture Inspector Bar -->
           <div id="selected-fixture-bar" class="selected-fixture-bar hidden">
-            <span id="selected-fixture-icon" class="selected-fixture-icon">🎸</span>
-            <input id="selected-fixture-name" type="text" class="field-input selected-fixture-name-input" maxlength="28" placeholder="Fixture label" aria-label="Fixture Label" />
-            <select id="selected-fixture-type" class="field-select selected-fixture-type-select" aria-label="Fixture Type">
-              <option value="stage">Stage</option>
-              <option value="dj">DJ Booth</option>
-              <option value="bar">Bar</option>
-              <option value="booth">Sound Desk</option>
-              <option value="speaker">Speaker</option>
-              <option value="entrance">Entrance</option>
-              <option value="wc">Toilets</option>
-              <option value="water">Water</option>
-              <option value="cloak">Cloakroom</option>
-              <option value="chill">Chill / VIP</option>
-              <option value="pillar">Pillar</option>
-              <option value="custom">Custom...</option>
-            </select>
-            <span id="selected-fixture-pos" class="selected-fixture-pos">Zone D4</span>
-            <button id="btn-delete-fixture" type="button" class="chip-btn chip-danger" title="Remove selected fixture">✕</button>
+            <!-- Stage block inspector view -->
+            <div id="stage-inspector-view" class="inspector-stage-view hidden">
+              <span class="selected-fixture-icon">🎸</span>
+              <input id="selected-stage-name" type="text" class="field-input selected-fixture-name-input" maxlength="28" placeholder="Stage Title (e.g. Stage)" aria-label="Stage Title" />
+              <span class="stage-required-pill">Required Stage Block — drag to move</span>
+              <span id="selected-stage-pos" class="selected-fixture-pos">Zone D1</span>
+            </div>
+
+            <!-- Free Emoji Marker inspector view -->
+            <div id="emoji-inspector-view" class="inspector-emoji-view">
+              <input id="selected-fixture-emoji" type="text" class="field-input selected-fixture-emoji-input" maxlength="8" placeholder="📍" aria-label="Marker Emoji" title="Change to any emoji" />
+              <input id="selected-fixture-name" type="text" class="field-input selected-fixture-name-input" maxlength="28" placeholder="Optional label (blank = emoji only)" aria-label="Fixture Label" />
+              <span id="selected-fixture-pos" class="selected-fixture-pos">Zone D4</span>
+              <button id="btn-delete-fixture" type="button" class="chip-btn chip-danger" title="Remove marker">✕ Remove</button>
+            </div>
           </div>
         </div>
 

@@ -93,7 +93,16 @@
     let landmarks = [];
     switch (templateKey) {
       case 'blank':
-        landmarks = [];
+        landmarks = [
+          {
+            id: 'lm-stage-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+            name: 'Stage',
+            type: 'stage',
+            icon: FIXTURE_TYPES.stage.icon,
+            x: 0.50,
+            y: 0.08
+          }
+        ];
         break;
       case 'club':
         landmarks = [
@@ -117,6 +126,7 @@
         break;
       case 'boiler':
         landmarks = [
+          { id: 'lm-stage-boiler', name: 'Stage', type: 'stage', icon: FIXTURE_TYPES.stage.icon, x: 0.50, y: 0.08 },
           { id: 'lm-dj360', name: '360° DJ Booth', type: 'dj', icon: FIXTURE_TYPES.dj.icon, x: 0.50, y: 0.50 },
           { id: 'lm-nbar', name: 'North Bar', type: 'bar', icon: FIXTURE_TYPES.bar.icon, x: 0.50, y: 0.12 },
           { id: 'lm-sbar', name: 'Side Bar', type: 'bar', icon: FIXTURE_TYPES.bar.icon, x: 0.12, y: 0.50 },
@@ -125,7 +135,16 @@
         ];
         break;
       default:
-        landmarks = [];
+        landmarks = [
+          {
+            id: 'lm-stage-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+            name: 'Stage',
+            type: 'stage',
+            icon: FIXTURE_TYPES.stage.icon,
+            x: 0.50,
+            y: 0.08
+          }
+        ];
         break;
     }
 
@@ -402,11 +421,12 @@
       return { landmark: null, distance: Infinity, phrase: '' };
     }
 
-    let phrase = `Toward ${closest.name}`;
+    const refLabel = (closest.name && closest.name.trim()) ? closest.name.trim() : (closest.icon || 'marker');
+    let phrase = `Toward ${refLabel}`;
     if (minDistance < 0.07) {
-      phrase = `Right by ${closest.name}`;
+      phrase = `Right by ${refLabel}`;
     } else if (minDistance < 0.18) {
-      phrase = `Near ${closest.name}`;
+      phrase = `Near ${refLabel}`;
     }
 
     return {
