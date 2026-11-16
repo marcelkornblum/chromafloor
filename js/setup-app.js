@@ -337,19 +337,24 @@
     const landmarks = Array.isArray(room.landmarks) ? room.landmarks : [];
 
     landmarks.forEach(lm => {
-      const posX = state.flipped ? (1 - lm.x) : lm.x;
-      const posY = state.flipped ? (1 - lm.y) : lm.y;
+      const rawDispX = state.flipped ? (1 - lm.x) : lm.x;
+      const rawDispY = state.flipped ? (1 - lm.y) : lm.y;
+      const isStage = (lm.type === 'stage');
+      const dispX = isStage
+        ? Math.max(0.16, Math.min(0.84, rawDispX))
+        : Math.max(0.07, Math.min(0.93, rawDispX));
+      const dispY = Math.max(0.065, Math.min(0.935, rawDispY));
       const isSelected = lm.id === state.selectedFixtureId;
 
       const pill = document.createElement('div');
       pill.className = `landmark-pill editable landmark-${lm.type || 'custom'}${isSelected ? ' selected-fixture' : ''}`;
-      pill.style.left = `${posX * 100}%`;
-      pill.style.top = `${posY * 100}%`;
+      pill.style.left = `${dispX * 100}%`;
+      pill.style.top = `${dispY * 100}%`;
       pill.dataset.fixtureId = lm.id;
       pill.dataset.type = lm.type || 'custom';
       pill.innerHTML = `
-        <span class="landmark-icon">${lm.icon || '📍'}</span>
-        <span class="landmark-title">${lm.name}</span>
+        <span class="lm-emoji">${lm.icon || '📍'}</span>
+        <span class="lm-text">${lm.name}</span>
       `;
 
       // 60fps Drag-and-drop handler for placed landmarks
@@ -410,9 +415,14 @@
       lm.x = normX;
       lm.y = normY;
 
-      // Update position on overlay
-      const dispX = state.flipped ? (1 - lm.x) : lm.x;
-      const dispY = state.flipped ? (1 - lm.y) : lm.y;
+      // Update position on overlay with edge-safe display clamping
+      const rawDispX = state.flipped ? (1 - lm.x) : lm.x;
+      const rawDispY = state.flipped ? (1 - lm.y) : lm.y;
+      const isStage = (lm.type === 'stage');
+      const dispX = isStage
+        ? Math.max(0.16, Math.min(0.84, rawDispX))
+        : Math.max(0.07, Math.min(0.93, rawDispX));
+      const dispY = Math.max(0.065, Math.min(0.935, rawDispY));
       pillEl.style.left = `${dispX * 100}%`;
       pillEl.style.top = `${dispY * 100}%`;
 
