@@ -30,6 +30,7 @@
     rooms: JSON.parse(JSON.stringify(ColorEngine.DEFAULT_ROOMS)),
     spot: { x: 0.36, y: 0.34 },
     friendPin: null, // Friend pin decoded from URL if present
+    friendBannerDismissed: false,
     flipped: false,
     beaconOpen: false,
     beaconPulsing: false,
@@ -40,14 +41,33 @@
   };
 
   let liveClient = null;
+  let shareFeedbackTimer = null;
 
   // Helper: Element getter by primary ID or fallback ID
   function getEl(primaryId, fallbackId) {
     return document.getElementById(primaryId) || (fallbackId ? document.getElementById(fallbackId) : null);
   }
 
+  /**
+   * Safe HTML escaper for user, friend, and room strings interpolated into innerHTML
+   */
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // DOM Elements
   const els = {
+    btnVenueMenu: getEl('btn-venue-menu'),
+    venueMenuModal: getEl('venue-menu-modal'),
+    venueMenuTitle: getEl('venue-menu-title'),
+    venueMenuRooms: getEl('venue-menu-rooms'),
+    btnCloseVenueMenu: getEl('btn-close-venue-menu'),
     shareEventName: getEl('share-event-name', 'event-name-label'),
     linkToSetup: getEl('link-to-setup', 'btn-edit-layout'),
     roomTabs: getEl('room-tabs'),
@@ -187,11 +207,13 @@
           const targetPin = pins.find(p => p.id === decoded.focusPinId) || pins[0];
           if (targetPin) {
             state.friendPin = targetPin;
+            state.friendBannerDismissed = false;
             if (targetPin.roomId) state.activeRoomId = targetPin.roomId;
-            // Also position reticle at friend pin or slightly offset
-            // We keep user spot distinct or initialize to friend's spot
+            // Initialize spot to friend's spot when opening link
             state.spot = { x: targetPin.x, y: targetPin.y };
           }
+        } else {
+          state.friendPin = null;
         }
       }
     }
@@ -217,7 +239,7 @@
       return;
     }
 
-    const { connectedCount, state: connState } = state.liveStatus;
+    const { state: connState } = state.liveStatus;
     const peerCount = state.livePeers.length;
 
     if (connState === 'live') {
@@ -238,6 +260,7 @@
 
   /**
    * Renders horizontal live peers strip (#live-peers-strip)
+   * Every friend chip is locked solidly to THEIR spot's exact colour.
    */
   function renderLivePeersStrip() {
     if (!els.livePeersStrip) return;
@@ -251,49 +274,64 @@
     els.livePeersStrip.classList.remove('hidden');
     els.livePeersStrip.innerHTML = '';
 
-    const activeRoom = getActiveRoom();
-
     state.livePeers.forEach(peer => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'live-peer-chip';
-      chip.title = `Switch to ${peer.name}`;
+      const peerName = peer.name || 'Friend';
+      chip.title = `Switch to ${peerName}`;
 
-      const peerRoom = state.rooms.find(r => r.id === peer.roomId) || { name: peer.roomId || 'Room', widthMeters: 40, depthMeters: 50 };
-      const isDiffRoom = peer.roomId !== state.activeRoomId;
-      const roomHint = isDiffRoom ? ` ↗ ${peerRoom.name}` : '';
+      const peerRoom = state.rooms.find(r => r.id === peer.roomId) || getActiveRoom();
+      const peerColor = ColorEngine.getSpotColor(peer.x, peer.y, peerRoom.palette || 'wheel');
+      const chipHex = peer.hex || peerColor.hex;
+      const chipText = peerColor.textColor;
+      const chipColorName = peer.colorName || peerColor.colorName;
 
-      // Distance calculation in meters
+      // Solidly lock pill to friend's exact spot colour (never washed into dynamic theme)
+      chip.style.setProperty('background', chipHex, 'important');
+      chip.style.setProperty('background-color', chipHex, 'important');
+      chip.style.setProperty('color', chipText, 'important');
+      chip.style.borderColor = chipText === '#FFFFFF' ? '#FFFFFF' : '#0B0E14';
+
+      const isDiffRoom = Boolean(peer.roomId && peer.roomId !== state.activeRoomId);
+      const roomHint = isDiffRoom ? ` ↗ ${escapeHtml(peerRoom.name)}` : '';
+
+      // Distance calculation in meters when in same room
       let distText = '';
-      try {
-        const directions = ColorEngine.getWalkingDirections(state.spot, peer, peerRoom);
-        if (directions && typeof directions.meters === 'number') {
-          distText = ` · ${directions.meters}m`;
-        }
-      } catch (_) {}
+      if (!isDiffRoom) {
+        try {
+          const directions = ColorEngine.getWalkingDirections(state.spot, peer, peerRoom);
+          if (directions && typeof directions.meters === 'number') {
+            distText = ` · ${directions.meters}m`;
+          }
+        } catch (_) {}
+      }
 
       chip.innerHTML = `
-        <span class="live-peer-chip-dot" style="background-color: ${peer.hex || '#FFFFFF'}"></span>
-        <span>${peer.name || 'Friend'}${roomHint}</span>
-        <span class="live-peer-chip-dist">${distText}</span>
+        <span class="live-peer-chip-dot" style="background-color: ${chipText}; border-color: ${chipText};"></span>
+        <span style="color: inherit;"><strong>${escapeHtml(peerName)}</strong> · ${escapeHtml(chipColorName)}</span>
+        ${(roomHint || distText) ? `<span class="live-peer-chip-dist" style="color: inherit; opacity: 0.9;">${roomHint}${escapeHtml(distText)}</span>` : ''}
       `;
 
       chip.addEventListener('click', () => {
         if (peer.roomId && peer.roomId !== state.activeRoomId) {
           state.activeRoomId = peer.roomId;
           renderRoomTabs();
+          updateOrientationHint();
           renderFloorCanvas();
           renderOverlay();
           updateSwatch();
           updateHeader();
+          renderLivePeersStrip();
           publishCurrentSpot();
         } else {
           // Snap spot to peer if in same room
           state.spot = { x: peer.x, y: peer.y };
           renderOverlay();
           updateSwatch();
+          renderLivePeersStrip();
           publishCurrentSpot();
-          showToast(`📍 Snapped to ${peer.name}'s spot!`);
+          showToast(`📍 Snapped to ${peerName}'s spot!`);
         }
       });
 
@@ -336,6 +374,9 @@
           renderLivePeersStrip();
           renderOverlay();
           updateQrLiveStatusText();
+          if (els.venueMenuModal && !els.venueMenuModal.classList.contains('hidden')) {
+            renderVenueMenu();
+          }
         },
         onStatusChange: (status) => {
           state.liveStatus = status || { connectedCount: 0, state: 'offline' };
@@ -353,27 +394,162 @@
   }
 
   /**
+   * Builds Venue Setup URL preserving full current state
+   */
+  function getSetupUrl() {
+    return UrlState.buildSetupUrl({
+      eventName: state.eventName,
+      activeRoomId: state.activeRoomId,
+      rooms: state.rooms,
+      pins: state.friendPin ? [state.friendPin] : [],
+      sessionId: state.sessionId
+    });
+  }
+
+  /**
    * Synchronize UI header & link to setup
    */
   function updateHeader() {
     if (els.shareEventName) {
-      els.shareEventName.textContent = state.eventName || 'ChromaFloor';
+      els.shareEventName.textContent = state.eventName || 'BangFace';
+    }
+    if (els.venueMenuTitle) {
+      els.venueMenuTitle.textContent = state.eventName || 'BangFace';
     }
 
     // Update link-to-setup href preserving full current state
     if (els.linkToSetup) {
-      const setupUrl = UrlState.buildSetupUrl({
-        eventName: state.eventName,
-        activeRoomId: state.activeRoomId,
-        rooms: state.rooms,
-        pins: state.friendPin ? [state.friendPin] : [],
-        sessionId: state.sessionId
-      });
+      const setupUrl = getSetupUrl();
       if (els.linkToSetup.tagName.toLowerCase() === 'a') {
         els.linkToSetup.href = setupUrl;
       } else {
         els.linkToSetup.onclick = () => { window.location.href = setupUrl; };
       }
+    }
+  }
+
+  /**
+   * Full-Screen Room-Divided Venue Menu (#venue-menu-modal)
+   */
+  function renderVenueMenu() {
+    if (els.venueMenuTitle) {
+      els.venueMenuTitle.textContent = state.eventName || 'BangFace';
+    }
+    if (!els.venueMenuRooms) return;
+    els.venueMenuRooms.innerHTML = '';
+
+    const activeFriends = state.livePeers.length > 0
+      ? state.livePeers
+      : (state.friendPin ? [state.friendPin] : []);
+
+    state.rooms.forEach(room => {
+      const isActive = room.id === state.activeRoomId;
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = `venue-room-tile${isActive ? ' active' : ''}`;
+
+      const friendsInRoom = activeFriends.filter(f => (f.roomId || 'main') === room.id);
+      const friendPillsHtml = friendsInRoom.map(f => {
+        const fc = ColorEngine.getSpotColor(f.x, f.y, room.palette || 'wheel');
+        const fName = (f.name && f.name !== 'Shared Spot') ? f.name : 'Friend';
+        return `<span class="venue-room-friend-pill" style="background-color: ${fc.hex}; color: ${fc.textColor};">${escapeHtml(fName)} · <span style="text-transform:uppercase; letter-spacing:0.03em;">${escapeHtml(fc.colorName)}</span></span>`;
+      }).join('');
+
+      const lmCount = Array.isArray(room.landmarks) ? room.landmarks.length : 0;
+
+      tile.innerHTML = `
+        <div class="venue-room-tile-eyebrow">${isActive ? '● CURRENT ROOM' : 'TAP TO ENTER'}</div>
+        <div class="venue-room-tile-name">${escapeHtml(room.name || 'Room')}</div>
+        <div class="venue-room-tile-meta">
+          <span>${lmCount} markers</span>
+          ${friendPillsHtml}
+        </div>
+      `;
+
+      tile.addEventListener('click', () => {
+        state.activeRoomId = room.id;
+        closeVenueMenu();
+        renderRoomTabs();
+        updateOrientationHint();
+        renderFloorCanvas();
+        renderOverlay();
+        updateSwatch();
+        updateHeader();
+        if (state.livePeers.length > 0) renderLivePeersStrip();
+        publishCurrentSpot();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      els.venueMenuRooms.appendChild(tile);
+    });
+
+    // Bottom split row: Home & Venue Setup
+    const setupUrl = getSetupUrl();
+    const homeRow = document.createElement('div');
+    homeRow.className = 'venue-home-row';
+    homeRow.innerHTML = `
+      <button type="button" id="btn-menu-home" class="venue-room-tile venue-home-tile">
+        <div class="venue-room-tile-eyebrow">RADAR</div>
+        <div class="venue-room-tile-name">🏠 Home</div>
+        <div class="venue-room-tile-meta"><span>Back to Radar</span></div>
+      </button>
+      <a id="link-menu-setup" href="${escapeHtml(setupUrl)}" class="venue-room-tile venue-home-tile" style="text-decoration: none;">
+        <div class="venue-room-tile-eyebrow">CUSTOMIZE</div>
+        <div class="venue-room-tile-name">⚙️ Venue Setup</div>
+        <div class="venue-room-tile-meta"><span>Edit stages &amp; rooms</span></div>
+      </a>
+    `;
+
+    const btnMenuHome = homeRow.querySelector('#btn-menu-home');
+    if (btnMenuHome) {
+      btnMenuHome.addEventListener('click', () => {
+        closeVenueMenu();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    els.venueMenuRooms.appendChild(homeRow);
+  }
+
+  function openVenueMenu() {
+    if (!els.venueMenuModal) return;
+    if (els.btnVenueMenu) {
+      els.btnVenueMenu.setAttribute('aria-expanded', 'true');
+    }
+    renderVenueMenu();
+    els.venueMenuModal.classList.remove('hidden');
+  }
+
+  function closeVenueMenu() {
+    if (els.venueMenuModal) {
+      els.venueMenuModal.classList.add('hidden');
+    }
+    if (els.btnVenueMenu) {
+      els.btnVenueMenu.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function setupVenueMenu() {
+    if (els.btnVenueMenu) {
+      els.btnVenueMenu.addEventListener('click', () => {
+        if (els.venueMenuModal && !els.venueMenuModal.classList.contains('hidden')) {
+          closeVenueMenu();
+        } else {
+          openVenueMenu();
+        }
+      });
+    }
+
+    if (els.btnCloseVenueMenu) {
+      els.btnCloseVenueMenu.addEventListener('click', closeVenueMenu);
+    }
+
+    if (els.venueMenuModal) {
+      els.venueMenuModal.addEventListener('click', (e) => {
+        if (e.target === els.venueMenuModal) {
+          closeVenueMenu();
+        }
+      });
     }
   }
 
@@ -394,10 +570,12 @@
       tab.addEventListener('click', () => {
         state.activeRoomId = room.id;
         renderRoomTabs();
+        updateOrientationHint();
         renderFloorCanvas();
         renderOverlay();
         updateSwatch();
         updateHeader();
+        if (state.livePeers.length > 0) renderLivePeersStrip();
         publishCurrentSpot();
       });
       els.roomTabs.appendChild(tab);
@@ -518,8 +696,8 @@
       els.swatchColorName.textContent = spotColor.colorName;
     }
 
-    const metaParts = [`Zone ${spotColor.zoneCode}`, spotColor.hex, spotColor.fullPositionLabel];
-    if (nearest.phrase) metaParts.push(nearest.phrase);
+    const posHint = nearest.phrase || spotColor.fullPositionLabel;
+    const metaParts = [`Zone ${spotColor.zoneCode}`, spotColor.hex, posHint];
 
     if (els.swatchMeta) {
       els.swatchMeta.textContent = metaParts.join(' · ');
@@ -550,10 +728,25 @@
   }
 
   /**
+   * Computes edge-safe horizontal/vertical shift style so map pin labels never clip off canvas edges
+   */
+  function getPinLabelShiftStyle(dispX, dispY) {
+    let shiftPct = 0;
+    if (dispX < 0.24) {
+      shiftPct = Math.round(((0.24 - dispX) / 0.24) * 44);
+    } else if (dispX > 0.76) {
+      shiftPct = -Math.round(((dispX - 0.76) / 0.24) * 44);
+    }
+    const transformPart = shiftPct !== 0 ? ` transform: translateX(${shiftPct}%);` : '';
+    const verticalPart = dispY > 0.90 ? ' order: -1; margin-top: 0; margin-bottom: 4px;' : '';
+    return `${transformPart}${verticalPart}`;
+  }
+
+  /**
    * Renders the interactive map overlay:
    * - Placed landmark pills (Stage, Bar, DJ, etc.)
    * - Draggable user reticle marker with live floating label
-   * - Pulsing friend pin banner and marker (if shared pin exists)
+   * - Solid friend-colour banner & high-impact colour-drenched friend/peer badges on the wheel
    */
   function renderOverlay() {
     if (!els.mapOverlay) return;
@@ -562,62 +755,125 @@
     const room = getActiveRoom();
     const palette = room.palette || 'wheel';
     const spotColor = ColorEngine.getSpotColor(state.spot.x, state.spot.y, palette);
-
-    // 1. Friend Shared Spot Banner & Static Friend Pin (only if 0 live peers)
     const hasLivePeers = state.livePeers.length > 0;
-    if (!hasLivePeers && state.friendPin && state.friendPin.roomId === state.activeRoomId) {
+
+    // 1a. Static Shared Friend Banner (#shared-friend-banner) — always solidly locked to THEIR spot's exact colour
+    if (!hasLivePeers && state.friendPin && !state.friendBannerDismissed) {
       if (els.sharedFriendBanner) {
+        const friendRoom = state.rooms.find(r => r.id === state.friendPin.roomId) || room;
+        const friendSpotColor = ColorEngine.getSpotColor(
+          state.friendPin.x,
+          state.friendPin.y,
+          friendRoom.palette || 'wheel'
+        );
+
         els.sharedFriendBanner.classList.remove('hidden');
-        const friendColorName = state.friendPin.colorName || 'Shared Spot';
-        const friendNearest = ColorEngine.getNearestLandmark(state.friendPin.x, state.friendPin.y, room);
-        const nearText = friendNearest.phrase ? ` · ${friendNearest.phrase}` : '';
+        els.sharedFriendBanner.style.setProperty('background', friendSpotColor.hex, 'important');
+        els.sharedFriendBanner.style.setProperty('background-color', friendSpotColor.hex, 'important');
+        els.sharedFriendBanner.style.setProperty('color', friendSpotColor.textColor, 'important');
+        els.sharedFriendBanner.style.borderColor = friendSpotColor.textColor === '#FFFFFF' ? '#FFFFFF' : '#0B0E14';
+
+        const rawName = (state.friendPin.name && state.friendPin.name !== 'Shared Spot')
+          ? state.friendPin.name
+          : 'Friend';
+        const friendNearest = ColorEngine.getNearestLandmark(state.friendPin.x, state.friendPin.y, friendRoom);
+        const nearText = friendNearest.phrase ? ` · ${escapeHtml(friendNearest.phrase)}` : '';
+        const isDiffRoom = Boolean(state.friendPin.roomId && state.friendPin.roomId !== state.activeRoomId);
+        const locationSuffix = isDiffRoom ? ` ↗ ${escapeHtml(friendRoom.name)}` : nearText;
+
         els.sharedFriendBanner.innerHTML = `
-          <div class="friend-banner-content">
-            <span class="friend-dot"></span>
-            <span>📍 Friend's spot: <strong>${friendColorName}</strong>${nearText}</span>
+          <div class="friend-banner-content" role="button" tabindex="0" style="color: inherit; cursor: pointer;">
+            <span class="friend-dot" style="background-color: ${friendSpotColor.textColor}; border-color: ${friendSpotColor.textColor};"></span>
+            <span style="color: inherit;"><strong>${escapeHtml(rawName)}</strong>: <strong>${escapeHtml(friendSpotColor.colorName)}</strong>${locationSuffix}</span>
           </div>
-          <button type="button" class="friend-banner-close" aria-label="Dismiss banner">✕</button>
+          <button type="button" class="friend-banner-close" aria-label="Dismiss banner" style="color: inherit;">✕</button>
         `;
+
+        const bannerContent = els.sharedFriendBanner.querySelector('.friend-banner-content');
+        if (bannerContent) {
+          const handleBannerActivate = () => {
+            if (state.friendPin.roomId && state.friendPin.roomId !== state.activeRoomId) {
+              state.activeRoomId = state.friendPin.roomId;
+              renderRoomTabs();
+              updateOrientationHint();
+              renderFloorCanvas();
+              renderOverlay();
+              updateSwatch();
+              updateHeader();
+              publishCurrentSpot();
+              showToast(`Switched to ${friendRoom.name}`);
+            } else {
+              state.spot = { x: state.friendPin.x, y: state.friendPin.y };
+              renderOverlay();
+              updateSwatch();
+              publishCurrentSpot();
+              showToast(`Snapped to ${rawName}'s spot!`);
+            }
+          };
+          bannerContent.addEventListener('click', handleBannerActivate);
+          bannerContent.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleBannerActivate();
+            }
+          });
+        }
+
         const closeBtn = els.sharedFriendBanner.querySelector('.friend-banner-close');
         if (closeBtn) {
-          closeBtn.addEventListener('click', () => {
+          closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.friendBannerDismissed = true;
             els.sharedFriendBanner.classList.add('hidden');
           });
         }
       }
+    } else if (els.sharedFriendBanner) {
+      els.sharedFriendBanner.classList.add('hidden');
+    }
 
-      // Render Friend Pin on Floor
+    // 1b. Static Friend Pin on Floor (when friend is in active room and 0 live peers)
+    if (!hasLivePeers && state.friendPin && (!state.friendPin.roomId || state.friendPin.roomId === state.activeRoomId)) {
+      const friendSpotColor = ColorEngine.getSpotColor(state.friendPin.x, state.friendPin.y, palette);
+      const friendLabelName = (state.friendPin.name && state.friendPin.name !== 'Shared Spot')
+        ? state.friendPin.name
+        : 'Friend';
+
       const friendX = state.flipped ? (1 - state.friendPin.x) : state.friendPin.x;
       const friendY = state.flipped ? (1 - state.friendPin.y) : state.friendPin.y;
+      const shiftStyle = getPinLabelShiftStyle(friendX, friendY);
+
       const friendPinEl = document.createElement('div');
       friendPinEl.className = 'friend-pin-marker';
       friendPinEl.style.left = `${friendX * 100}%`;
       friendPinEl.style.top = `${friendY * 100}%`;
       friendPinEl.innerHTML = `
-        <div class="friend-pin-pulse"></div>
-        <div class="friend-pin-dot"></div>
-        <div class="friend-pin-label">${state.friendPin.name || 'Friend'}</div>
+        <div class="friend-pin-pulse" style="border: 3px solid ${friendSpotColor.hex}; box-shadow: 0 0 12px ${friendSpotColor.hex};"></div>
+        <div class="friend-pin-dot" style="background-color: ${friendSpotColor.hex}; border: 2.5px solid #FFFFFF;"></div>
+        <div class="friend-pin-label" style="background-color: ${friendSpotColor.hex}; color: ${friendSpotColor.textColor}; border: 2.5px solid #FFFFFF;${shiftStyle}"><span>${escapeHtml(friendLabelName)} · <span style="text-transform:uppercase; letter-spacing:0.03em;">${escapeHtml(friendSpotColor.colorName)}</span></span></div>
       `;
       friendPinEl.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Snap user spot to friend
         state.spot = { x: state.friendPin.x, y: state.friendPin.y };
         renderOverlay();
         updateSwatch();
         publishCurrentSpot();
-        showToast(`📍 Snapped to friend's spot!`);
+        showToast(`Snapped to ${friendLabelName}'s spot!`);
       });
       els.mapOverlay.appendChild(friendPinEl);
-    } else if (els.sharedFriendBanner) {
-      els.sharedFriendBanner.classList.add('hidden');
     }
 
-    // 1b. Live Peer Pins in Active Room
+    // 1c. Live Peer Pins in Active Room — drenched solidly in each friend's exact spot colour
     state.livePeers.forEach(peer => {
       if (peer.roomId !== state.activeRoomId) return;
 
       const px = state.flipped ? (1 - peer.x) : peer.x;
       const py = state.flipped ? (1 - peer.y) : peer.y;
+      const peerSpotColor = ColorEngine.getSpotColor(peer.x, peer.y, palette);
+      const pinHex = peer.hex || peerSpotColor.hex;
+      const pinText = peerSpotColor.textColor;
+      const pinColorName = peer.colorName || peerSpotColor.colorName;
+      const peerShiftStyle = getPinLabelShiftStyle(px, py);
 
       const peerPinEl = document.createElement('div');
       peerPinEl.className = 'live-peer-pin';
@@ -633,13 +889,16 @@
         }
       } catch (_) {}
 
-      const timeAgo = peer.isLive ? distTag : (Math.round((Date.now() - peer.ts) / 60000) + 'm ago');
-      const tagText = timeAgo ? `${peer.name || 'Friend'} · ${timeAgo}` : (peer.name || 'Friend');
+      const metaInfo = peer.isLive
+        ? distTag
+        : (peer.ts ? `${Math.max(1, Math.round((Date.now() - peer.ts) / 60000))}m ago` : distTag);
+      const distSuffix = metaInfo ? ` · ${escapeHtml(metaInfo)}` : '';
+      const peerLabelName = peer.name || 'Friend';
 
       peerPinEl.innerHTML = `
-        ${peer.isLive ? `<div class="live-peer-halo" style="border: 2px solid ${peer.hex || '#FFFFFF'};"></div>` : ''}
-        <div class="live-peer-circle" style="background-color: ${peer.hex || '#FFFFFF'};"></div>
-        <div class="live-peer-tag">${tagText}</div>
+        ${peer.isLive !== false ? `<div class="live-peer-halo" style="border: 3px solid ${pinHex}; box-shadow: 0 0 12px ${pinHex};"></div>` : ''}
+        <div class="live-peer-circle" style="background-color: ${pinHex}; border: 2.5px solid #FFFFFF;"></div>
+        <div class="live-peer-tag" style="background-color: ${pinHex}; color: ${pinText}; border: 2.5px solid #FFFFFF;${peerShiftStyle}"><span>${escapeHtml(peerLabelName)} · <span style="text-transform:uppercase; letter-spacing:0.03em;">${escapeHtml(pinColorName)}</span>${distSuffix}</span></div>
       `;
 
       peerPinEl.addEventListener('click', (e) => {
@@ -647,8 +906,9 @@
         state.spot = { x: peer.x, y: peer.y };
         renderOverlay();
         updateSwatch();
+        renderLivePeersStrip();
         publishCurrentSpot();
-        showToast(`📍 Snapped to ${peer.name}'s spot!`);
+        showToast(`📍 Snapped to ${peerLabelName}'s spot!`);
       });
 
       els.mapOverlay.appendChild(peerPinEl);
@@ -661,9 +921,11 @@
       const rawDispY = state.flipped ? (1 - lm.y) : lm.y;
       const isStage = (lm.type === 'stage');
       const dispX = isStage
-        ? Math.max(0.16, Math.min(0.84, rawDispX))
-        : Math.max(0.07, Math.min(0.93, rawDispX));
-      const dispY = Math.max(0.065, Math.min(0.935, rawDispY));
+        ? Math.max(0.18, Math.min(0.82, rawDispX))
+        : Math.max(0.085, Math.min(0.915, rawDispX));
+      const dispY = isStage
+        ? Math.max(0.08, Math.min(0.92, rawDispY))
+        : Math.max(0.085, Math.min(0.915, rawDispY));
 
       const pill = document.createElement('div');
       const hasLabel = Boolean(lm.name && lm.name.trim().length > 0);
@@ -672,9 +934,9 @@
       pill.style.left = `${dispX * 100}%`;
       pill.style.top = `${dispY * 100}%`;
       pill.dataset.type = lm.type || 'custom';
-      
-      const emojiHtml = `<span class="lm-emoji${isPureEmoji ? ' standalone' : ''}">${lm.icon || '📍'}</span>`;
-      const labelHtml = (isStage || hasLabel) ? `<span class="lm-text">${lm.name || (isStage ? 'STAGE' : '')}</span>` : '';
+
+      const emojiHtml = `<span class="lm-emoji${isPureEmoji ? ' standalone' : ''}">${escapeHtml(lm.icon || '📍')}</span>`;
+      const labelHtml = (isStage || hasLabel) ? `<span class="lm-text">${escapeHtml(lm.name || (isStage ? 'STAGE' : ''))}</span>` : '';
       pill.innerHTML = `${emojiHtml}${labelHtml}`;
 
       // Tapping a landmark gently snaps reticle to it!
@@ -683,6 +945,8 @@
         state.spot = { x: lm.x, y: lm.y };
         renderOverlay();
         updateSwatch();
+        if (state.livePeers.length > 0) renderLivePeersStrip();
+        publishCurrentSpot();
         const toastName = (lm.name && lm.name.trim()) ? lm.name.trim() : (lm.icon || 'marker');
         showToast(`Snapped to ${toastName}`);
       });
@@ -783,6 +1047,7 @@
       } catch (_) {}
       renderOverlay();
       updateSwatch();
+      if (state.livePeers.length > 0) renderLivePeersStrip();
       publishCurrentSpot();
     }
 
@@ -805,6 +1070,7 @@
       state.spot.y = Math.max(0, Math.min(1, state.spot.y + dy));
       renderOverlay();
       updateSwatch();
+      if (state.livePeers.length > 0) renderLivePeersStrip();
       publishCurrentSpot();
     });
   }
@@ -896,19 +1162,23 @@
       }
     }
 
-    // 3. UI feedback
+    // 3. Crisp Share button feedback ('✓ Copied!', restoring to 'Share' after 2.5s)
+    if (shareFeedbackTimer) {
+      clearTimeout(shareFeedbackTimer);
+      shareFeedbackTimer = null;
+    }
     if (els.shareBtnLabel) {
-      const origText = els.shareBtnLabel.textContent;
-      els.shareBtnLabel.textContent = '✓ Copied My Spot & Link!';
-      setTimeout(() => {
-        els.shareBtnLabel.textContent = origText;
-      }, 3000);
+      els.shareBtnLabel.textContent = '✓ Copied!';
+      shareFeedbackTimer = setTimeout(() => {
+        if (els.shareBtnLabel) els.shareBtnLabel.textContent = 'Share';
+        shareFeedbackTimer = null;
+      }, 2500);
     } else if (els.btnShareSpot) {
-      const origText = els.btnShareSpot.textContent;
-      els.btnShareSpot.textContent = '✓ Copied Spot Link!';
-      setTimeout(() => {
-        els.btnShareSpot.textContent = origText;
-      }, 3000);
+      els.btnShareSpot.textContent = '✓ Copied!';
+      shareFeedbackTimer = setTimeout(() => {
+        if (els.btnShareSpot) els.btnShareSpot.textContent = 'Share';
+        shareFeedbackTimer = null;
+      }, 2500);
     }
 
     showToast(copied ? '✓ Copied spot & radar link to clipboard!' : '✓ Spot link ready!');
@@ -954,10 +1224,17 @@
         openQrModal();
       });
     }
+  }
 
+  /**
+   * Global Escape key handler for Venue Menu, QR Modal, and Beacon Modal
+   */
+  function setupGlobalKeyboard() {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        if (els.qrModal && !els.qrModal.classList.contains('hidden')) {
+        if (els.venueMenuModal && !els.venueMenuModal.classList.contains('hidden')) {
+          closeVenueMenu();
+        } else if (els.qrModal && !els.qrModal.classList.contains('hidden')) {
           closeQrModal();
         } else if (state.beaconOpen) {
           if (els.beaconCloseBtn) els.beaconCloseBtn.click();
@@ -1159,10 +1436,12 @@
     renderOverlay();
     updateSwatch();
 
+    setupVenueMenu();
     setupLiveFinder();
     setupQrModal();
     setupMapInteractions();
     setupBeacon();
+    setupGlobalKeyboard();
     setupTheme();
     setupFlipWheel();
 
@@ -1177,6 +1456,28 @@
       els.btnShareSpot.addEventListener('click', handleOneClickShare);
     }
 
+    // Keep 2D rainbow wheel razor-sharp at native DPR whenever #map-viewport flexes or resizes
+    if (window.ResizeObserver && els.mapViewport) {
+      let lastObservedW = Math.round(els.mapViewport.getBoundingClientRect().width) || 0;
+      let lastObservedH = Math.round(els.mapViewport.getBoundingClientRect().height) || 0;
+      const viewportObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const cr = entry.contentRect;
+          const w = Math.round(cr.width);
+          const h = Math.round(cr.height);
+          if (w > 0 && h > 0 && (w !== lastObservedW || h !== lastObservedH)) {
+            lastObservedW = w;
+            lastObservedH = h;
+            window.requestAnimationFrame(() => {
+              renderFloorCanvas();
+              renderOverlay();
+            });
+          }
+        }
+      });
+      viewportObserver.observe(els.mapViewport);
+    }
+
     window.addEventListener('resize', () => {
       renderFloorCanvas();
       renderOverlay();
@@ -1186,9 +1487,13 @@
       initData();
       updateHeader();
       renderRoomTabs();
+      updateOrientationHint();
       renderFloorCanvas();
       renderOverlay();
       updateSwatch();
+      if (els.venueMenuModal && !els.venueMenuModal.classList.contains('hidden')) {
+        renderVenueMenu();
+      }
       if (state.sessionId) {
         ensureLiveClient();
       } else {

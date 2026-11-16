@@ -23,100 +23,118 @@
   <!-- Radically Simple, Single-Column Sharing Shell (max-width: 480px) -->
   <div class="share-shell">
 
-    <!-- Minimal Header Bar -->
-    <header class="share-header">
-      <div class="share-header-left">
-        <a href="./" class="brand-link" aria-label="ChromaFloor Home">
-          <div class="brand-mark">
-            <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect width="32" height="32" rx="8" fill="#15181D" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
-              <circle cx="16" cy="16" r="10" stroke="url(#shareBrandGrad)" stroke-width="3" />
-              <circle cx="16" cy="16" r="3.5" fill="#F59E0B" />
-              <defs>
-                <linearGradient id="shareBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#EF4444" />
-                  <stop offset="25%" stop-color="#F59E0B" />
-                  <stop offset="50%" stop-color="#10B981" />
-                  <stop offset="75%" stop-color="#06B6D4" />
-                  <stop offset="100%" stop-color="#EC4899" />
-                </linearGradient>
-              </defs>
+    <!-- ZONE 1: Strictly Above the Fold (100dvh) -->
+    <div class="above-fold-hero">
+
+      <!-- Top Bar: Tactile Venue & Rooms Menu Button -->
+      <header class="share-header">
+        <button id="btn-venue-menu" type="button" class="btn-venue-menu" aria-haspopup="dialog" aria-expanded="false" title="Open rooms & venue menu">
+          <span class="venue-btn-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+              <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+              <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+              <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
             </svg>
-          </div>
-          <span class="brand-title">ChromaFloor</span>
-        </a>
-        <span id="share-event-name" class="share-event-pill">BangFace</span>
-      </div>
+          </span>
+          <span id="share-event-name" class="venue-btn-title">BangFace</span>
+          <span class="venue-btn-chevron" aria-hidden="true">▾</span>
+        </button>
+      </header>
 
-      <div class="share-header-right">
-        <a id="link-to-setup" href="./setup.html" class="btn-setup-link" title="Customize rooms, stage & bar">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>Setup</span>
-        </a>
-      </div>
-    </header>
+      <!-- Tidy Segmented Room Navbar -->
+      <nav id="room-tabs" class="room-tabs share-room-tabs" role="tablist" aria-label="Select Room"></nav>
 
-    <!-- 1. Room Selector -->
-    <nav id="room-tabs" class="room-tabs share-room-tabs" role="tablist" aria-label="Select Room"></nav>
+      <!-- Friend Location Pill Area (collapsed when .hidden) -->
+      <div id="live-peers-strip" class="live-peers-strip hidden"></div>
+      <div id="shared-friend-banner" class="shared-friend-banner hidden"></div>
 
-    <!-- Sleek single-line frosted Live Bar -->
-    <div id="live-bar" class="live-bar">
-      <button id="btn-live-toggle" type="button" class="live-status-pill" title="Start or copy Live Finder session">
-        <span id="live-dot" class="live-dot"></span>
-        <span id="live-status-text">Go Live</span>
-      </button>
-      <input id="live-name-input" type="text" class="live-name-input" maxlength="20" placeholder="Your name (optional)" aria-label="Your name for Live Finder" />
-      <button id="btn-show-qr" type="button" class="btn-live-qr" title="Show QR code for people nearby to scan & join">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
-        <span>QR</span>
-      </button>
-    </div>
-    <div id="live-peers-strip" class="live-peers-strip hidden"></div>
-
-    <!-- Optional incoming friend banner (hidden unless a shared link was opened) -->
-    <div id="shared-friend-banner" class="shared-friend-banner hidden"></div>
-
-    <!-- 2. The 2D Colour Wheel Map Card -->
-    <section class="wheel-stage-card" aria-label="2D Colour Wheel Stage Radar">
-      <div class="wheel-top-strip">
-        <div class="orientation-box">
-          <span class="stage-dir-dot"></span>
-          <span id="orientation-hint" class="orientation-hint">FACING STAGE ↑</span>
+      <!-- 2D Colour Wheel Stage Radar -->
+      <section class="wheel-stage-card" aria-label="2D Colour Wheel Stage Radar">
+        <div id="map-viewport" class="map-viewport share-wheel-viewport" tabindex="0" role="application" aria-label="Tap or drag on the colour wheel to choose where you are">
+          <canvas id="floor-canvas" width="800" height="800"></canvas>
+          <div id="map-overlay" class="map-overlay"></div>
         </div>
-        <button id="btn-flip-wheel" type="button" class="btn-flip-wheel" title="Flip perspective 180°">🔄 Flip</button>
+      </section>
+
+      <!-- Compact 1-Line Spot Readout + Big Share Button -->
+      <div class="share-cta-block">
+        <div id="spot-readout" class="spot-readout-compact">
+          <h1 id="swatch-color-name" class="spot-color-title">Bright Mint</h1>
+          <span id="swatch-meta" class="spot-color-meta">Zone G3 · #49FB82 · Toward Speaker</span>
+        </div>
+
+        <button id="btn-share-spot" type="button" class="btn-primary-amber btn-single-share">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          <span id="share-btn-label">Share</span>
+        </button>
       </div>
 
-      <!-- Square 1:1 Viewport -->
-      <div id="map-viewport" class="map-viewport share-wheel-viewport" tabindex="0" role="application" aria-label="Tap or drag on the colour wheel to choose where you are">
-        <canvas id="floor-canvas" width="800" height="800"></canvas>
-        <div id="map-overlay" class="map-overlay"></div>
+    </div>
+
+    <!-- ZONE 2: Below the Fold Extra Controls -->
+    <section class="below-fold-tools" aria-label="More Tools">
+      <div class="below-fold-divider">
+        <span class="below-fold-caption">MORE TOOLS</span>
       </div>
+
+      <!-- Live Finder Bar -->
+      <div id="live-bar" class="live-bar">
+        <button id="btn-live-toggle" type="button" class="live-status-pill" title="Start or copy Live Finder session">
+          <span id="live-dot" class="live-dot"></span>
+          <span id="live-status-text">Go Live</span>
+        </button>
+        <input id="live-name-input" type="text" class="live-name-input" maxlength="20" placeholder="Your name (optional)" aria-label="Your name for Live Finder" />
+      </div>
+
+      <!-- 2x2 Utility Grid -->
+      <div class="bottom-utility-grid">
+        <button id="btn-show-qr" type="button" class="btn-themed-glass btn-utility-item" title="Show QR code for people nearby to scan & join">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+          <span class="utility-item-label">QR Code</span>
+        </button>
+
+        <button id="btn-fullscreen-beacon" type="button" class="btn-themed-glass btn-utility-item" title="Fill screen with pure colour">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <span class="utility-item-label">Fullscreen</span>
+        </button>
+
+        <button id="btn-flip-wheel" type="button" class="btn-themed-glass btn-utility-item btn-utility-flip" title="Flip perspective 180°">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <span class="utility-flip-stack">
+            <span class="utility-item-label">Flip 180°</span>
+            <span id="orientation-hint" class="orientation-hint-sub">Facing Stage ↑</span>
+          </span>
+        </button>
+
+        <a id="link-to-setup" href="./setup.html" class="btn-themed-glass btn-utility-item" title="Customize rooms, stage & bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          <span class="utility-item-label">Venue Setup</span>
+        </a>
+      </div>
+
+      <!-- Minimal footer info -->
+      <footer class="share-footer">
+        <span>Zero-Backend 2D Colour Locator</span>
+        <span class="footer-sep">·</span>
+        <span>PWA Offline</span>
+      </footer>
     </section>
 
-    <!-- 3. Your Chosen Colour Readout -->
-    <div id="spot-readout" class="spot-readout-row">
-      <div class="spot-readout-info">
-        <h1 id="swatch-color-name" class="spot-color-title">Bright Mint</h1>
-        <div id="swatch-meta" class="spot-color-meta">Zone G3 · #49FB82 · Toward Speaker</div>
+  </div>
+
+  <!-- Full-Screen Venue / Room Split Menu Modal -->
+  <div id="venue-menu-modal" class="venue-menu-modal hidden" role="dialog" aria-modal="true" aria-label="Choose Room or Home">
+    <div class="venue-menu-top">
+      <div class="venue-menu-heading">
+        <span class="venue-menu-eyebrow">GROUP ROOMS</span>
+        <span id="venue-menu-title" class="venue-menu-title">BangFace</span>
       </div>
-      <button id="btn-fullscreen-beacon" type="button" class="btn-themed-glass" title="Fill screen with pure colour">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-        <span>Fullscreen</span>
-      </button>
+      <button id="btn-close-venue-menu" type="button" class="venue-menu-close-btn" aria-label="Close menu">✕</button>
     </div>
-
-    <!-- 4. Single Share / Copy Button -->
-    <button id="btn-share-spot" type="button" class="btn-primary-amber btn-single-share">
-      <span id="share-btn-label">Share / Copy My Spot</span>
-    </button>
-
-    <!-- Minimal footer info -->
-    <footer class="share-footer">
-      <span>Zero-Backend 2D Colour Locator</span>
-      <span class="footer-sep">·</span>
-      <span>PWA Offline</span>
-    </footer>
-
+    <div id="venue-menu-rooms" class="venue-menu-rooms">
+      <!-- Dynamically populated with equal-height room tiles (.venue-room-tile) + home/setup tile by share-app.js -->
+    </div>
   </div>
 
   <!-- Full-Screen Crowd Color Beacon Modal -->
